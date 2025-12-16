@@ -1,0 +1,73 @@
+<!-- booking/templates/booking/base.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}日麻预约系统{% endblock %}</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; margin: 20px; }
+        nav { margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+        nav a { margin-right: 15px; text-decoration: none; }
+        
+        /* --- Messages 样式 --- */
+        .messages {
+            list-style-type: none;
+            padding: 0;
+            margin: 0 0 20px 0;
+        }
+        .messages li {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .messages li.success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .messages li.error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .messages li.warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+        }
+        .messages li.info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="{% url 'store_status' %}">首页</a>
+        <a href="{% url 'list_pending_bookings' %}">加入对局</a>
+        {% if user.is_authenticated %}
+            <a href="{% url 'my_bookings' %}">我的对局</a>
+            <span>你好, {{ user.username }}!</span>
+            <a href="{% url 'logout' %}">退出登录</a>
+        {% else %}
+            <a href="{% url 'login' %}">登录</a>
+            <a href="{% url 'signup' %}">注册</a>
+        {% endif %}
+    </nav>
+    
+    <main>
+        <!-- 在内容前显示 Django messages (修正版) -->
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

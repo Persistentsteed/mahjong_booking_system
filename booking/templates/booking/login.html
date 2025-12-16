@@ -1,0 +1,13 @@
+<!-- booking/templates/booking/login.html -->
+{% extends 'booking/base.html' %}
+
+{% block title %}用户登录{% endblock %}
+
+{% block content %}
+    <h2>用户登录</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">登录</button>
+    </form>
+{% endblock %}

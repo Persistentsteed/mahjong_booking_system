@@ -1,0 +1,13 @@
+<!-- booking/templates/booking/signup.html -->
+{% extends 'booking/base.html' %}
+
+{% block title %}用户注册{% endblock %}
+
+{% block content %}
+    <h2>注册新用户</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }} <!-- as_p 会将每个表单字段渲染在一个 <p> 标签中 -->
+        <button type="submit">注册</button>
+    </form>
+{% endblock %}

@@ -1,0 +1,39 @@
+<!-- booking/templates/booking/my_bookings.html -->
+{% extends 'booking/base.html' %}
+{% block title %}我的预约{% endblock %}
+{% block content %}
+<h1>我的对局</h1>
+<table border="1" style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr>
+            <th>门店</th>
+            <th>开始时间</th>
+            <th>状态</th>
+            <th>参与者</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for booking in bookings %}
+        <tr>
+            <td>{{ booking.store.name }}</td>
+            <td>{{ booking.start_time|date:"Y-m-d H:i" }}</td>
+            <td>{{ booking.get_status_display }}</td>
+            <td>{% for p in booking.participants.all %}{{ p.username }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+            <td>
+                {% if booking.status == 'PENDING' or booking.status == 'CONFIRMED' %}
+                <form action="{% url 'cancel_booking' booking.id %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" onclick="return confirm('确定要退出这个对局吗？')">
+                        {% if booking.status == 'PENDING' %}退出{% else %}取消预约{% endif %}
+                    </button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" style="text-align: center;">您还没有加入或发起任何对局。</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

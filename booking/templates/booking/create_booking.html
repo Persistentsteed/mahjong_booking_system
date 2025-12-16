@@ -1,0 +1,25 @@
+<!-- booking/templates/booking/create_booking.html -->
+{% extends 'booking/base.html' %}
+
+{% block title %}预约 - {{ store.name }}{% endblock %}
+
+{% block content %}
+    <h1>为 {{ store.name }} 提交预约</h1>
+    
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %} <!-- 安全令牌，必不可少 -->
+        <p>
+            <label for="start_time">预计开始时间:</label><br>
+            <input type="datetime-local" id="start_time" name="start_time" required>
+        </p>
+        <p>
+            <label for="num_games">预计局数 (半庄):</label><br>
+            <input type="number" id="num_games" name="num_games" value="4" min="1" required>
+        </p>
+        <button type="submit">提交预约</button>
+    </form>
+{% endblock %}

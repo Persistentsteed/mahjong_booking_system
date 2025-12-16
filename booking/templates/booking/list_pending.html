@@ -1,0 +1,49 @@
+<!-- booking/templates/booking/list_pending.html -->
+{% extends 'booking/base.html' %}
+{% block title %}加入对局{% endblock %}
+{% block content %}
+<h2>可加入的对局</h2>
+<table border="1" style="width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr>
+            <th>门店</th>
+            <th>发起人</th>
+            <th>开始时间</th>
+            <th>当前人数</th>
+            <th>操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for booking in bookings %}
+        <tr>
+            <td>{{ booking.store.name }}</td>
+            <td>{{ booking.creator.username }}</td>
+            <td>{{ booking.start_time|date:"Y-m-d H:i" }}</td>
+            <td>
+                {{ booking.participants.count }} / 4
+                <small>({% for p in booking.participants.all %}{{ p.username }}{% if not forloop.last %}, {% endif %}{% endfor %})</small>
+            </td>
+            <td>
+                <!-- 检查用户是否已加入 且 人数未满 -->
+                {% if user.is_authenticated and user not in booking.participants.all and booking.participants.count < 4 %}
+                <form action="{% url 'join_booking' booking.id %}" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit">加入</button>
+                </form>
+                {% elif user in booking.participants.all %}
+                    已加入
+                {% elif booking.participants.count >= 4 %}
+                    已满
+                {% else %}
+                    <a href="{% url 'login' %}?next={{ request.path }}">登录后加入</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" style="text-align: center;">当前没有等待凑桌的对局。</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,10 @@
+<!-- booking/templates/booking/error.html -->
+{% extends 'booking/base.html' %}
+
+{% block title %}操作失败{% endblock %}
+
+{% block content %}
+    <h1>操作失败</h1>
+    <p style="color: red;">{{ message }}</p>
+    <a href="{% url 'store_status' %}">返回首页</a>
+{% endblock %}

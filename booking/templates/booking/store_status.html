@@ -1,0 +1,50 @@
+<!-- booking/templates/booking/store_status.html -->
+{% extends 'booking/base.html' %}
+{% load booking_extras %}
+
+{% block content %}
+    <h1>各门店对局及空桌情况 ({{ now|date:"Y-m-d H:i" }})</h1>
+
+    {% if not stores %}
+        <p>管理员尚未添加任何门店信息。</p>
+    {% endif %}
+    
+    {% for store in stores %}
+        <div style="border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
+            <h2>{{ store.name }}</h2>
+            <p style="margin-top: -10px; color: #555;">{{ store.address }} (共 {{ store.tables.count }} 桌)</p>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                {% for table in store.tables.all %}
+                    {% with booking=bookings_by_table|get_item:table.id %}
+                        {% if booking %}
+                            <div style="border: 1px solid #c82333; padding: 10px; background-color: #f8d7da; width: 250px; border-radius: 3px;">
+                                <strong style="color: #721c24;">{{ table.table_number }} (使用中)</strong>
+                                <p style="margin: 8px 0 0; font-size: 0.9em; color: #721c24;">
+                                    <strong>对局者:</strong>
+                                    {% for player in booking.participants.all %}
+                                        {{ player.username }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </p>
+                                <p style="margin: 5px 0 0; font-size: 0.8em; color: #721c24;">
+                                    <strong>时间:</strong> {{ booking.start_time|time:"H:i" }} - {{ booking.estimated_end_time|time:"H:i" }}
+                                </p>
+                            </div>
+                        {% else %}
+                            <div style="border: 1px solid #218838; padding: 10px; background-color: #d4edda; border-radius: 3px;">
+                                <strong style="color: #155724;">{{ table.table_number }} (空闲)</strong>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                {% endfor %}
+            </div>
+
+            <br>
+            {% if user.is_authenticated %}
+                <a href="{% url 'create_booking' store.id %}" style="background-color: #007bff; color: white; padding: 8px 12px; text-decoration: none; border-radius: 3px;">发起本店预约</a>
+            {% else %}
+                <a href="{% url 'login' %}?next={{ request.path }}" style="background-color: #6c757d; color: white; padding: 8px 12px; text-decoration: none; border-radius: 3px;">登录后可发起预约</a>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% endblock %}
