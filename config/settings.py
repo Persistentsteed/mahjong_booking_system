@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'booking',
+    'accounts',
 ]
 
 MIDDLEWARE = [
@@ -134,3 +135,5 @@ CELERY_TIMEZONE = 'Asia/Shanghai' # 设置时区
 LOGIN_URL = 'login' # 当需要登录时，跳转到名为 'login' 的URL
 LOGIN_REDIRECT_URL = 'store_status' # 登录成功后，跳转到名为 'store_status' 的URL
 LOGOUT_REDIRECT_URL = 'store_status' # 登出成功后，跳转到名为 'store_status' 的URL
+
+AUTH_USER_MODEL = 'accounts.CustomUser'

@@ -2,49 +2,154 @@
 {% extends 'booking/base.html' %}
 {% load booking_extras %}
 
+{% block title %}首页 - 门店实时状态{% endblock %}
+
 {% block content %}
-    <h1>各门店对局及空桌情况 ({{ now|date:"Y-m-d H:i" }})</h1>
-
-    {% if not stores %}
-        <p>管理员尚未添加任何门店信息。</p>
-    {% endif %}
+<style>
+    /* 增加一些简单的内联样式来美化按钮和布局 */
+    .store-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
+        background-color: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .store-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+    .store-info h2 { margin: 0; font-size: 1.5rem; color: #333; }
+    .store-info p { margin: 5px 0 0; color: #666; font-size: 0.9rem; }
     
-    {% for store in stores %}
-        <div style="border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
-            <h2>{{ store.name }}</h2>
-            <p style="margin-top: -10px; color: #555;">{{ store.address }} (共 {{ store.tables.count }} 桌)</p>
+    .tables-grid { display: flex; flex-wrap: wrap; gap: 15px; }
+    
+    .table-card {
+        width: 260px;
+        padding: 12px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        transition: transform 0.2s ease-in-out; /* 添加hover动画 */
+    }
+    .table-card:hover {
+        transform: translateY(-3px);
+    }
+    .table-busy {
+        background-color: #ffeef0;
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+    .table-free {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+    
+    .btn {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background-color 0.2s, border-color 0.2s;
+    }
+    .btn-primary { background-color: #007bff; color: white; border: 1px solid #007bff; }
+    .btn-primary:hover { background-color: #0056b3; border-color: #0056b3; }
+    
+    .btn-outline { background-color: transparent; color: #007bff; border: 1px solid #007bff; margin-left: 10px;}
+    .btn-outline:hover { background-color: #e7f1ff; }
+    
+    .info-row { margin: 4px 0; font-size: 0.85rem; }
+    .status-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        font-size: 0.75rem;
+        border-radius: 4px;
+        background: rgba(0,0,0,0.1);
+        margin-left: 5px;
+        color: #333; /* 改善badge颜色 */
+    }
+</style>
 
-            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                {% for table in store.tables.all %}
-                    {% with booking=bookings_by_table|get_item:table.id %}
-                        {% if booking %}
-                            <div style="border: 1px solid #c82333; padding: 10px; background-color: #f8d7da; width: 250px; border-radius: 3px;">
-                                <strong style="color: #721c24;">{{ table.table_number }} (使用中)</strong>
-                                <p style="margin: 8px 0 0; font-size: 0.9em; color: #721c24;">
-                                    <strong>对局者:</strong>
-                                    {% for player in booking.participants.all %}
-                                        {{ player.username }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
-                                </p>
-                                <p style="margin: 5px 0 0; font-size: 0.8em; color: #721c24;">
-                                    <strong>时间:</strong> {{ booking.start_time|time:"H:i" }} - {{ booking.estimated_end_time|time:"H:i" }}
-                                </p>
-                            </div>
-                        {% else %}
-                            <div style="border: 1px solid #218838; padding: 10px; background-color: #d4edda; border-radius: 3px;">
-                                <strong style="color: #155724;">{{ table.table_number }} (空闲)</strong>
-                            </div>
-                        {% endif %}
-                    {% endwith %}
-                {% endfor %}
+<h1>各门店实时对局情况 ({{ now|date:"Y-m-d H:i" }})</h1>
+
+{% if not stores %}
+    <p>管理员尚未添加任何门店信息。</p>
+{% endif %}
+
+{% for store in stores %}
+    <div class="store-card">
+        <div class="store-header">
+            <div class="store-info">
+                <h2>{{ store.name }}</h2>
+                <p>{{ store.address }} (共 {{ store.tables.count }} 桌)</p>
             </div>
-
-            <br>
-            {% if user.is_authenticated %}
-                <a href="{% url 'create_booking' store.id %}" style="background-color: #007bff; color: white; padding: 8px 12px; text-decoration: none; border-radius: 3px;">发起本店预约</a>
-            {% else %}
-                <a href="{% url 'login' %}?next={{ request.path }}" style="background-color: #6c757d; color: white; padding: 8px 12px; text-decoration: none; border-radius: 3px;">登录后可发起预约</a>
-            {% endif %}
+            <div class="store-actions">
+                {% if user.is_authenticated %}
+                    <!-- 发起预约按钮 -->
+                    <a href="{% url 'create_booking' store.id %}" class="btn btn-primary">发起预约</a>
+                    <!-- 查看图形化课表按钮 (新增) -->
+                    <a href="{% url 'store_timetable' store.id %}" class="btn btn-outline">📊 查看时间表</a>
+                {% else %}
+                    <a href="{% url 'login' %}?next={{ request.path }}" class="btn" style="background:#eee; color:#666; border:1px solid #ccc;">登录后操作</a>
+                {% endif %}
+            </div>
         </div>
-    {% endfor %}
+
+        <div class="tables-grid">
+            {% for table in store.tables.all %}
+                {% with booking=bookings_by_table|get_item:table.id %}
+                    {% if booking %}
+                        <!-- 忙碌状态 -->
+                        <div class="table-card table-busy">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <strong>{{ table.table_number }} (使用中)</strong>
+                                <span class="status-badge">
+                                    {% if booking.booking_type == 'GAMES' %}
+                                        {{ booking.num_games }} 半庄
+                                    {% else %}
+                                        按时长
+                                    {% endif %}
+                                </span>
+                            </div>
+                              
+                            <div class="info-row" style="margin-top:8px;">
+                                <strong>对局者:</strong>
+                                {% for player in booking.participants.all %}
+                                    <!-- ★★★ 用户名显示修改点 ★★★ -->
+                                    {{ player.display_name|default:player.username }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </div>
+                              
+                            <div class="info-row">
+                                <strong>发起人:</strong> 
+                                <!-- ★★★ 用户名显示修改点 ★★★ -->
+                                {{ booking.creator.display_name|default:booking.creator.username }}
+                            </div>
+                              
+                            <div class="info-row">
+                                <strong>时间:</strong> 
+                                {{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- 空闲状态 -->
+                        <div class="table-card table-free">
+                            <strong>{{ table.table_number }}</strong>
+                            <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                                当前空闲
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+{% endfor %}
+
 {% endblock %}

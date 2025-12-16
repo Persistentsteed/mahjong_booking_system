@@ -1,25 +1,116 @@
 <!-- booking/templates/booking/create_booking.html -->
-{% extends 'booking/base.html' %}
 
-{% block title %}预约 - {{ store.name }}{% endblock %}
+{% extends 'booking/base.html' %} {% block content %}
 
-{% block content %}
-    <h1>为 {{ store.name }} 提交预约</h1>
-    
-    {% if error %}
-        <p style="color: red;">{{ error }}</p>
-    {% endif %}
+<h1>为 {{ store.name }} 提交预约</h1>
 
-    <form method="post">
-        {% csrf_token %} <!-- 安全令牌，必不可少 -->
-        <p>
-            <label for="start_time">预计开始时间:</label><br>
-            <input type="datetime-local" id="start_time" name="start_time" required>
-        </p>
-        <p>
-            <label for="num_games">预计局数 (半庄):</label><br>
-            <input type="number" id="num_games" name="num_games" value="4" min="1" required>
-        </p>
-        <button type="submit">提交预约</button>
-    </form>
+<form method="post" id="booking-form">
+  {% csrf_token %}
+
+  <div>
+    <label>预约类型:</label>
+
+    <input
+      type="radio"
+      name="booking_type"
+      value="GAMES"
+      id="type_games"
+      checked
+    />
+
+    <label for="type_games">按半庄数</label>
+
+    <input
+      type="radio"
+      name="booking_type"
+      value="DURATION"
+      id="type_duration"
+    />
+
+    <label for="type_duration">按时间段</label>
+  </div>
+
+  <div id="games_fields">
+    <p>
+      <label for="start_time_games">开始时间:</label><br /><input type="datetime-local" name="start_time_games" required>
+    </p>
+
+    <p>
+      <label for="num_games">半庄数:</label><br /><input
+        type="number"
+        id="num_games"
+        name="num_games"
+        value="4"
+        min="1"
+      />
+    </p>
+  </div>
+
+  <div id="duration_fields" style="display: none">
+    <p>
+      <label for="start_time_duration">开始时间:</label><br /><input type="datetime-local" name="start_time_duration">
+    </p>
+
+    <p>
+      <label for="end_time">结束时间:</label><br /><input
+        type="datetime-local"
+        id="end_time"
+        name="end_time"
+      />
+    </p>
+  </div>
+
+  <button type="submit">提交预约</button>
+</form>
+
+<script>
+  // 简单的前端逻辑切换表单
+
+  const form = document.getElementById("booking-form");
+
+  const gamesFields = document.getElementById("games_fields");
+
+  const durationFields = document.getElementById("duration_fields");
+
+  const gamesStartInput = document.getElementById("start_time_games");
+
+  const gamesNumInput = document.getElementById("num_games");
+
+  const durationStartInput = document.getElementById("start_time_duration");
+
+  const durationEndInput = document.getElementById("end_time");
+
+  form.addEventListener("change", (e) => {
+    if (e.target.name === "booking_type") {
+      if (e.target.value === "GAMES") {
+        gamesFields.style.display = "block";
+
+        durationFields.style.display = "none";
+
+        // 确保只有一个 start_time 被提交
+
+        gamesStartInput.name = "start_time";
+
+        durationStartInput.name = "";
+
+        gamesNumInput.required = true;
+
+        durationEndInput.required = false;
+      } else {
+        gamesFields.style.display = "none";
+
+        durationFields.style.display = "block";
+
+        gamesStartInput.name = "";
+
+        durationStartInput.name = "start_time";
+
+        gamesNumInput.required = false;
+
+        durationEndInput.required = true;
+      }
+    }
+  });
+</script>
+
 {% endblock %}

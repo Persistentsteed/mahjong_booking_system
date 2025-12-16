@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.contrib import messages
 from .models import Store, Booking
+from accounts.forms import CustomUserCreationForm
 import datetime
 
 # --- 用户认证需要用到的模块 ---
@@ -29,7 +30,7 @@ def store_status_view(request):
         status='CONFIRMED',
         table__isnull=False,  # 确保已经分配了牌桌
         start_time__lte=now,  # 对局已经开始
-        estimated_end_time__gte=now # 对局尚未结束
+        end_time__gte=now # 对局尚未结束
     ).select_related('table').prefetch_related('participants')
     
     # 构建一个以 table_id 为键，当前正在进行的预定信息为值的字典
@@ -57,37 +58,63 @@ def list_pending_bookings_view(request):
 
 # --- 视图 3: 创建预约 (重构) ---
 @login_required
-def create_booking_view(request, store_id):
-    store = get_object_or_404(Store, id=store_id)
-    # 限制每人最多发起2个未成行的局
-    if Booking.objects.filter(creator=request.user, status='PENDING').count() >= 2:
-        messages.error(request, '您发起的待处理预约已达上限 (2个)。')
-        return redirect('store_status')
-    
-    if request.method == 'POST':
-        try:
-            start_time_str = request.POST.get('start_time')
-            num_games = int(request.POST.get('num_games', 4))
-            start_time = timezone.make_aware(datetime.datetime.fromisoformat(start_time_str))
+def create_booking_view(request, store_id): 
+    store = get_object_or_404(Store, id=store_id) 
+    if Booking.objects.filter(creator=request.user, status='PENDING').count() >= 2: 
+        messages.error(request, '您发起的待处理预约已达上限 (2个)。') 
+        return redirect('store_status') 
+    if request.method == 'POST': 
+        try: 
+            booking_type = request.POST.get('booking_type') 
+            # 统一获取开始时间
+            start_time_str = request.POST.get('start_time') 
+            start_time = None
 
-            if start_time < timezone.now() + datetime.timedelta(minutes=30):
-                raise ValueError("预约时间必须在30分钟以后。")
+            # 根据类型去读不同名字的输入框
+            if booking_type == 'GAMES':
+                time_str = request.POST.get('start_time_games')
+            else: 
+                time_str = request.POST.get('start_time_duration')
+            
+            if not time_str:
+                raise ValueError("请填写开始时间")
+                
+            start_time = timezone.make_aware(datetime.datetime.fromisoformat(time_str))
 
-            booking = Booking.objects.create(
-                creator=request.user,
-                store=store,
-                start_time=start_time,
-                num_games=num_games,
-            )
-            # 创建者自动加入对局
-            booking.participants.add(request.user)
-            messages.success(request, '预约已成功发起，等待其他玩家加入！')
-            return redirect('my_bookings')
-        except (ValueError, TypeError) as e:
-            messages.error(request, f'输入有误: {e}')
-            return redirect('create_booking', store_id=store_id)
+            # 根据不同的预约类型处理
+            if booking_type == 'GAMES': 
+                num_games = int(request.POST.get('num_games', 4)) 
+                if num_games <= 0: raise ValueError("半庄数必须大于0。") 
+                # 结束时间会在 save 方法中自动计算
+                booking = Booking( 
+                    creator=request.user, store=store, start_time=start_time, 
+                    booking_type='GAMES', num_games=num_games
+                ) 
+                  # 手动计算一次 end_time，用于后续的冲突检测
+                booking.end_time = start_time + datetime.timedelta(minutes=num_games * 45) 
+            elif booking_type == 'DURATION': 
+                end_time_str = request.POST.get('end_time') 
+                end_time = timezone.make_aware(datetime.datetime.fromisoformat(end_time_str)) 
+                if end_time <= start_time: 
+                    raise ValueError("结束时间必须晚于开始时间。") 
+                booking = Booking( 
+                    creator=request.user, store=store, start_time=start_time, 
+                    booking_type='DURATION', end_time=end_time
+                ) 
+            else: 
+                raise ValueError("无效的预约类型。") 
 
-    return render(request, 'booking/create_booking.html', {'store': store})
+            # [可选但推荐] 牌桌冲突预检查
+            # ... 可以在这里添加一个简单的逻辑，检查该时间段是否有空桌 ... 
+
+            booking.save() # 调用 save() 会处理 end_time 的最终计算
+            booking.participants.add(request.user) 
+            messages.success(request, '预约已成功发起！') 
+            return redirect('my_bookings') 
+        except (ValueError, TypeError) as e: 
+            messages.error(request, f'输入有误: {e}') 
+            return redirect('create_booking', store_id=store_id) 
+    return render(request, 'booking/create_booking.html', {'store': store}) 
 
 # --- 视图 4: 加入预约 (全新) ---
 @login_required
@@ -165,16 +192,16 @@ def my_bookings_view(request):
     bookings = request.user.joined_bookings.all().order_by('start_time')
     return render(request, 'booking/my_bookings.html', {'bookings': bookings})
 
-# --- 用户认证视图 (保持不变) ---
+
 def signup_view(request):
     if request.method == 'POST':
-        form = SignUpForm(request.POST)
+        form = CustomUserCreationForm(request.POST) # 使用新的表单
         if form.is_valid():
             user = form.save()
             login(request, user)
             return redirect('store_status')
     else:
-        form = SignUpForm()
+        form = CustomUserCreationForm()
     return render(request, 'booking/signup.html', {'form': form})
 
 def login_view(request):
@@ -194,3 +221,51 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return redirect('store_status')
+
+def store_timetable_view(request, store_id):
+    store = get_object_or_404(Store, id=store_id)
+    local_timezone = timezone.get_current_timezone() # 获取 settings.TIME_ZONE
+    now = timezone.localtime(timezone.now()) # 将当前 UTC 时间转换为本地时区时间
+    
+    # 确定视图展示的24小时的起始时间
+    # 为了让视图从整点开始，我们可以选择当前小时的整点作为开始
+    # 或者从某一天的0点开始，这里为了简单，我们还是从当前小时整点开始，更符合“实时”
+    start_of_view = now.replace(minute=0, second=0, microsecond=0)
+    end_of_view = start_of_view + datetime.timedelta(hours=24)
+
+    # 确保时间轴的起始时间也是这一天/小时
+    timeline_start_display_hour = start_of_view.hour
+
+    bookings = Booking.objects.filter(
+        store=store,
+        status='CONFIRMED',
+        table__isnull=False,
+        # 过滤条件：预约的结束时间晚于视图开始时间 且 预约的开始时间早于视图结束时间
+        end_time__gt=start_of_view,
+        start_time__lt=end_of_view
+    ).select_related('table', 'creator')
+    
+    bookings_by_table = {table.id: [] for table in store.tables.all()}
+    for booking in bookings:
+        if booking.table:
+            bookings_by_table[booking.table.id].append(booking)
+
+    time_slots = []
+    for i in range(24): # 24个时间格
+        slot_time = start_of_view + datetime.timedelta(hours=i)
+        time_slots.append({
+            'label': slot_time.strftime('%H:00'),
+            'is_current_hour': (slot_time.hour == now.hour and slot_time.day == now.day) # 标记当前小时
+        })
+
+    context = {
+        'store': store,
+        'bookings_by_table': bookings_by_table,
+        'tables': store.tables.all(),
+        'time_slots': time_slots,
+        'timetable_start_datetime': start_of_view, # 将完整的 datetime 对象传递过去
+        'timeline_start_display_hour': timeline_start_display_hour, # 用于在标题显示范围
+        'now': now, # 用于画当前时间线
+
+    }
+    return render(request, 'booking/store_timetable.html', context)

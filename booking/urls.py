@@ -17,4 +17,6 @@ urlpatterns = [
     path('signup/', views.signup_view, name='signup'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+
+    path('store/<int:store_id>/timetable/', views.store_timetable_view, name='store_timetable'),
 ]
