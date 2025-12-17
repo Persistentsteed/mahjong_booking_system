@@ -9,6 +9,12 @@
         /* 从 base.html 复制过来的通用样式，但为了避免重复和冲突，会做调整，
            理想情况下这些应该放在一个外部CSS文件，这里暂时内联以便快速演示。*/
         
+        .table-wrapper {
+            width: 100%;
+            margin: 0 auto;
+            box-sizing: border-box;
+            padding: 0 5px;
+        }
         .table-container {
             width: 100%;
             border-collapse: collapse;
@@ -18,7 +24,7 @@
             overflow: hidden; /* 确保圆角有效 */
         }
         .table-container th, .table-container td {
-            padding: 12px 15px;
+            padding: 10px 12px;
             text-align: left;
             border-bottom: 1px solid #dee2e6;
             vertical-align: middle;
@@ -75,10 +81,53 @@
             margin-top: 5px;
             display: block;
         }
+        @media (max-width: 768px) {
+            .table-container {
+                border-radius: 0;
+                box-shadow: none;
+            }
+            .table-container table,
+            .table-container thead,
+            .table-container tbody,
+            .table-container th,
+            .table-container td,
+            .table-container tr {
+                display: block;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .table-container tr {
+                margin-bottom: 15px;
+                border: 1px solid #e9ecef;
+                border-radius: 12px;
+                padding: 12px;
+                background: #fff;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+                overflow: hidden;
+            }
+            .table-container th {
+                display: none;
+            }
+            .table-container td {
+                border: none;
+                padding: 6px 0;
+            }
+            .table-container td::before {
+                content: attr(data-label);
+                font-weight: bold;
+                display: block;
+                color: #6c757d;
+            }
+            .action-button {
+                width: 100%;
+                margin-top: 12px;
+            }
+        }
     </style>
 
     <h1>可加入的对局</h1>
 
+    <div class="table-wrapper">
     <table class="table-container">
         <thead>
             <tr>
@@ -100,28 +149,25 @@
                 {% else %}
                     <tr>
                 {% endif %}
-                    <td>{{ booking.store.name }}</td>
-                    <td>{{ booking.creator.display_name|default:booking.creator.username }}</td>
-                    <td>
-                        {{ booking.start_time|date:"Y-m-d H:i" }} - 
-                        {{ booking.end_time|date:"Y-m-d H:i" }}
-                        <br>
-                        <small style="color: #888;">
-                            半庄数：{{ booking.num_games|default:"-" }}
-                        </small>
+                    <td data-label="门店">{{ booking.store.name }}</td>
+                    <td data-label="发起人">{{ booking.creator.display_name|default:booking.creator.username }}</td>
+                    <td data-label="时间">
+                        <div style="font-weight:600;">{{ booking.start_time|date:"Y-m-d H:i" }}</div>
+                        <div style="color:#555;">{{ booking.end_time|date:"Y-m-d H:i" }}</div>
+                        <div style="color:#888;font-size:0.85em;">半庄数：{{ booking.num_games|default:"-" }}</div>
                     </td>
-                    <td>
+                    <td data-label="当前人数">
                         {{ booking.participants.count }} / 4
                         <span class="user-list">
                             ({% for p in booking.participants.all %}{{ p.display_name|default:p.username }}{% if not forloop.last %}, {% endif %}{% endfor %})
                         </span>
                     </td>
-                    <td>
+                    <td data-label="状态">
                         <span class="status-badge status-{{ booking.status }}">
                             {{ booking.get_status_display }}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="操作">
                         {% if user.is_authenticated and user not in booking.participants.all and booking.participants.count < 4 %}
                             <form action="{% url 'join_booking' booking.id %}" method="post" style="display: inline;">
                                 {% csrf_token %}
@@ -149,4 +195,5 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 {% endblock %}

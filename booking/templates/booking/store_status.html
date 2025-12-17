@@ -9,11 +9,13 @@
     /* 增加一些简单的内联样式来美化按钮和布局 */
     .store-card {
         border: 1px solid #dee2e6;
-        border-radius: 8px;
+        border-radius: 16px;
         padding: 20px;
-        margin-bottom: 30px;
+        margin: 0 auto 30px;
         background-color: #fff;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        width: 100%;
+        box-sizing: border-box;
     }
     .store-header {
         display: flex;
@@ -23,17 +25,23 @@
         border-bottom: 1px solid #eee;
         padding-bottom: 10px;
     }
-    .store-info h2 { margin: 0; font-size: 1.5rem; color: #333; }
+    .store-info h2 { margin: 0; font-size: 1.3rem; color: #333; }
     .store-info p { margin: 5px 0 0; color: #666; font-size: 0.9rem; }
     
-    .tables-grid { display: flex; flex-wrap: wrap; gap: 15px; }
-    
+    .tables-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 15px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
     .table-card {
-        width: 260px;
         padding: 12px;
-        border-radius: 6px;
+        border-radius: 12px;
         border: 1px solid transparent;
         transition: transform 0.2s ease-in-out; /* 添加hover动画 */
+        box-sizing: border-box;
     }
     .table-card:hover {
         transform: translateY(-3px);
@@ -48,7 +56,12 @@
         border-color: #c3e6cb;
         color: #155724;
     }
-    
+    .store-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
     .btn {
         display: inline-block;
         padding: 6px 12px;
@@ -61,9 +74,10 @@
     .btn-primary { background-color: #007bff; color: white; border: 1px solid #007bff; }
     .btn-primary:hover { background-color: #0056b3; border-color: #0056b3; }
     
-    .btn-outline { background-color: transparent; color: #007bff; border: 1px solid #007bff; margin-left: 10px;}
+    .btn-outline { background-color: transparent; color: #007bff; border: 1px solid #007bff; }
+    .store-actions .btn-outline { margin-left: 10px; }
     .btn-outline:hover { background-color: #e7f1ff; }
-    
+
     .info-row { margin: 4px 0; font-size: 0.85rem; }
     .status-badge {
         display: inline-block;
@@ -74,9 +88,68 @@
         margin-left: 5px;
         color: #333; /* 改善badge颜色 */
     }
+    .table-card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        font-size: 0.95rem;
+    }
+    .table-label {
+        font-weight: 600;
+        color: #111;
+    }
+    .table-state {
+        font-size: 0.85rem;
+        color: inherit;
+    }
+    .desktop-info { display: block; }
+    @media (max-width: 768px) {
+        .store-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .store-actions {
+            width: 100%;
+            gap: 8px;
+        }
+        .store-actions a {
+            flex: 1 1 calc(48% - 4px);
+            min-width: 140px;
+            text-align: center;
+            margin-left: 0;
+        }
+        .store-actions .btn-outline {
+            margin-left: 0;
+        }
+        .tables-grid {
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+        }
+        .table-card {
+            margin-bottom: 0;
+            min-width: auto;
+        }
+        .store-card {
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+    }
+    @media (max-width: 600px) {
+        .tables-grid {
+            grid-template-columns: 1fr;
+        }
+        .table-card {
+            width: 100%;
+        }
+        .store-card {
+            padding: 18px 16px;
+        }
+    }
 </style>
 
-<h1>各门店实时对局情况 ({{ now|date:"Y-m-d H:i" }})</h1>
+<h1 style="line-height:1.2;">各门店实时对局情况<br><small style="font-size:1rem;color:#555;">{{ now|date:"Y-m-d H:i" }}</small></h1>
 
 {% if not stores %}
     <p>管理员尚未添加任何门店信息。</p>
@@ -107,39 +180,44 @@
                     {% if booking %}
                         <!-- 忙碌状态 -->
                         <div class="table-card table-busy">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <strong>{{ table.display_label }}</strong>
-                                <span> (使用中) </span>
+                            <div class="table-card-head">
+                                <span class="table-label">{{ table.display_label }}</span>
+                                <span class="table-state">使用中</span>
                                 <span class="status-badge">
                                     {{ booking.num_games|default:"-" }} 半庄
                                 </span>
                             </div>
-                              
-                            <div class="info-row" style="margin-top:8px;">
-                                <strong>对局者:</strong>
-                                {% for player in booking.participants.all %}
-                                    <!-- ★★★ 用户名显示修改点 ★★★ -->
-                                    {{ player.display_name|default:player.username }}{% if not forloop.last %}, {% endif %}
-                                {% endfor %}
-                            </div>
-                              
-                            <div class="info-row">
-                                <strong>发起人:</strong> 
-                                <!-- ★★★ 用户名显示修改点 ★★★ -->
-                                {{ booking.creator.display_name|default:booking.creator.username }}
-                            </div>
-                              
-                            <div class="info-row">
-                                <strong>时间:</strong> 
-                                {{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}
+
+                            <div class="desktop-info">
+                                <div class="info-row" style="margin-top:8px;">
+                                    <strong>对局者:</strong>
+                                    {% for player in booking.participants.all %}
+                                        {{ player.display_name|default:player.username }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </div>
+                                
+                                <div class="info-row">
+                                    <strong>发起人:</strong> 
+                                    {{ booking.creator.display_name|default:booking.creator.username }}
+                                </div>
+
+                                <div class="info-row">
+                                    <strong>时间:</strong>
+                                    {{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}
+                                </div>
                             </div>
                         </div>
                     {% else %}
                         <!-- 空闲状态 -->
                         <div class="table-card table-free">
-                            <strong>{{ table.display_label }}</strong>
-                            <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
-                                当前空闲
+                            <div class="table-card-head">
+                                <span class="table-label">{{ table.display_label }}</span>
+                                <span class="table-state">空闲</span>
+                            </div>
+                            <div class="desktop-info">
+                                <div class="info-row" style="margin-top:6px; color:#155724;">
+                                    立即可用
+                                </div>
                             </div>
                         </div>
                     {% endif %}

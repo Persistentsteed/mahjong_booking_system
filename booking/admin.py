@@ -453,5 +453,5 @@ class BookingAdmin(admin.ModelAdmin):
         
 @admin.register(CustomUser)   
 class CustomUserAdmin(admin.ModelAdmin):   
-    list_display = ('username', 'display_name', 'email', 'is_staff', 'is_active')   
-    search_fields = ('username', 'display_name', 'email')
+    list_display = ('username', 'display_name', 'is_staff', 'is_active')   
+    search_fields = ('username', 'display_name')

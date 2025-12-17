@@ -7,14 +7,22 @@
 {% block content %}
 <style>
     /* 容器样式 */
+    .schedule-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 10px;
+        box-sizing: border-box;
+    }
     .timetable-wrapper {
         position: relative;
-        overflow-x: auto; /* 允许横向滚动如果桌子太多 */
+        overflow-x: auto; /* 允许横向滚动 */
         margin-top: 20px;
         border: 1px solid #ddd;
         background: #fff;
-        max-height: calc(100vh - 200px); /* 限制高度，允许纵向滚动 */
+        border-radius: 12px;
+        max-height: calc(100vh - 200px); /* 桌面端限制高度，允许纵向滚动 */
         overflow-y: auto;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     }
 
     .timetable {
@@ -114,97 +122,135 @@
         z-index: 50; /* 确保在预约块之上 */
         pointer-events: none; /* 不会阻挡鼠标事件 */
     }
+
+    .timetable-mobile {
+        display: none;
+        margin-top: 20px;
+    }
+    .mobile-table-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 12px;
+        background: #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .mobile-table-head {
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #333;
+    }
+    .mobile-booking {
+        padding: 8px 10px;
+        border: 1px dashed #cbd5f5;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        font-size: 0.9em;
+        background: #f8fafc;
+    }
+    .mobile-booking:last-child { margin-bottom: 0; }
+    .mobile-booking strong { display: block; color: #111; margin-bottom: 4px; }
+    .no-booking { color: #777; font-size: 0.9em; }
+
+    @media (max-width: 900px) {
+        .timetable-wrapper {
+            max-height: none;
+        }
+    }
+    @media (max-width: 680px) {
+        .timetable-wrapper {
+            display: none;
+        }
+        .timetable-mobile {
+            display: block;
+        }
+    }
 </style>
 
-<div style="display: flex; justify-content: space-between; align-items: center;">
-    <h1>{{ store.name }} 24小时预约表</h1>
-    <div style="font-size: 0.9em; color: #666;">
-        当前展示范围: {{ timetable_start_datetime|date:"Y-m-d H:i" }}
-        开始的未来24小时
-        <a
-            href="{% url 'store_status' %}"
-            style="text-decoration: none; margin-left: 15px;"
-            >&larr; 返回列表</a
-        >
-        <a
-            href="{% url 'create_booking' store.id %}"
-            style="
-                background-color: #007bff;
-                color: white;
-                padding: 6px 12px;
-                border-radius: 4px;
-                text-decoration: none;
-                margin-left: 10px;
-            "
-            >+ 发起预约</a
-        >
+<div class="schedule-container">
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center;">
+        <h1 style="margin:0;">{{ store.name }} 24小时预约表</h1>
+        <div style="font-size: 0.9em; color: #666; text-align: right;">
+            当前展示范围: {{ timetable_start_datetime|date:"Y-m-d H:i" }} 开始的未来24小时<br>
+            <a href="{% url 'store_status' %}" style="text-decoration: none; display:inline-block; margin-top:4px;">&larr; 返回列表</a>
+            <a href="{% url 'create_booking' store.id %}" style="background-color: #007bff; color: white; padding: 6px 12px; border-radius: 4px; text-decoration: none; margin-left: 10px; display:inline-block;">+ 发起预约</a>
+        </div>
     </div>
-</div>
+    
+    <p style="color: #666; font-size: 0.9em; margin-top:10px;">
+        <span style="display: inline-block; width: 12px; height: 12px; background: #d1e7dd; border: 1px solid #a3cfbb; margin-right: 5px; vertical-align: middle;"></span>
+        已分配桌位的预约
+    </p>
 
-<p style="color: #666; font-size: 0.9em;">
-    <span
-        style="
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            background: #d1e7dd;
-            border: 1px solid #a3cfbb;
-            margin-right: 5px;
-            vertical-align: middle;
-        "
-    ></span>
-    已分配桌位的预约
-</p>
-
-<div class="timetable-wrapper">
-    <table class="timetable">
-        <thead>
-            <tr>
-                <th style="width: 80px;">时间</th>
-                {% for table in tables %}
-                <th>
-                    {{ table.display_label }}
-                </th>
-                {% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <!-- 第一列：时间轴列 -->
-                <td class="time-col">
-                    {% for slot in time_slots %}
-                    <div class="time-slot-marker">
-                        <span class="time-label">{{ slot.label }}</span>
-                    </div>
+    <div class="timetable-wrapper">
+        <table class="timetable">
+            <thead>
+                <tr>
+                    <th style="width: 80px;">时间</th>
+                    {% for table in tables %}
+                    <th>
+                        {{ table.display_label }}
+                    </th>
                     {% endfor %}
-                </td>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <!-- 第一列：时间轴列 -->
+                    <td class="time-col">
+                        {% for slot in time_slots %}
+                        <div class="time-slot-marker">
+                            <span class="time-label">{{ slot.label }}</span>
+                        </div>
+                        {% endfor %}
+                    </td>
 
-                <!-- 后续列：每个桌子一列 -->
-                {% for table in tables %}
-                <td style="padding: 0; border-right: 1px solid #eee; vertical-align: top;">
-                    <div class="table-col-content">
+                    <!-- 后续列：每个桌子一列 -->
+                    {% for table in tables %}
+                    <td style="padding: 0; border-right: 1px solid #eee; vertical-align: top;">
+                        <div class="table-col-content">
+                            {% with table_bookings=bookings_by_table|get_item:table.id %}
+                                {% for booking in table_bookings %}
+                                <div class="booking-block"
+                                     style="top:{{ booking|get_top_offset:timetable_start_datetime }}px;height:{{ booking|get_height_px:timetable_start_datetime }}px;"
+                                     title="发起人: {{ booking.creator.display_name|default:booking.creator.username }}&#10;时间: {{ booking.start_time|time:'H:i' }} - {{ booking.end_time|time:'H:i' }}">
 
+                                    <strong>{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</strong><br>
+                                    <span>{{ booking.creator.display_name|default:booking.creator.username }}</span><br>
+                                    <small>
+                                        半庄数：{{ booking.num_games|default:"-" }}
+                                    </small>
+                                </div>
+                                {% endfor %}
+                            {% endwith %}
+                        </div>
+                    </td>
+                    {% endfor %}
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
-                        {% with table_bookings=bookings_by_table|get_item:table.id %}
-                            {% for booking in table_bookings %}
-                            <div class="booking-block"
-                                 style="top:{{ booking|get_top_offset:timetable_start_datetime }}px;height:{{ booking|get_height_px:timetable_start_datetime }}px;"
-                                 title="发起人: {{ booking.creator.display_name|default:booking.creator.username }}&#10;时间: {{ booking.start_time|time:'H:i' }} - {{ booking.end_time|time:'H:i' }}">
-
-                                <strong>{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</strong><br>
-                                <span>{{ booking.creator.display_name|default:booking.creator.username }}</span><br>
-                                <small>
-                                    半庄数：{{ booking.num_games|default:"-" }}
-                                </small>
+    <div class="timetable-mobile">
+        {% for table in tables %}
+            <div class="mobile-table-card">
+                <div class="mobile-table-head">{{ table.display_label }}</div>
+                {% with table_bookings=bookings_by_table|get_item:table.id %}
+                    {% if table_bookings %}
+                        {% for booking in table_bookings %}
+                            <div class="mobile-booking">
+                                <strong>{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</strong>
+                                <div>发起人：{{ booking.creator.display_name|default:booking.creator.username }}</div>
+                                <div>半庄数：{{ booking.num_games|default:"-" }}</div>
                             </div>
-                            {% endfor %}
-                        {% endwith %}
-                    </div>
-                </td>
-                {% endfor %}
-            </tr>
-        </tbody>
-    </table>
+                        {% endfor %}
+                    {% else %}
+                        <div class="no-booking">暂无预约</div>
+                    {% endif %}
+                {% endwith %}
+            </div>
+        {% endfor %}
+    </div>
 </div>
 
 <script>
