@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.contrib import messages
 from .models import Store, Booking
 from accounts.forms import CustomUserCreationForm
+from django.db.models import Q 
 import datetime
 
 # --- 用户认证需要用到的模块 ---
@@ -45,10 +46,9 @@ def store_status_view(request):
 
 # --- 视图 2: 可加入的预约列表 (全新) ---
 def list_pending_bookings_view(request):
-    # 只显示未来还未凑齐的局
     pending_bookings = Booking.objects.filter(
         status='PENDING',
-        start_time__gte=timezone.now()
+        end_time__gte=timezone.now()  # 或者 Q(end_time__gte=timezone.now()) | Q(start_time__gte=timezone.now())
     ).prefetch_related('participants')
     
     context = {

@@ -199,7 +199,7 @@ class BookingAdmin(admin.ModelAdmin):
         fieldsets = []   
         if obj is None:   
             fieldsets.append(('基本信息', {   
-                'fields': ('creator', 'store', 'booking_type', 'status', 'start_time', 'end_time', 'num_games')   
+                'fields': ('creator', 'store', 'booking_type', 'status', 'start_time', 'end_time', 'num_games', 'table')   
             }))   
             fieldsets.append(('参与者', {'fields': ('participants',)}))   
         else:   
@@ -208,14 +208,9 @@ class BookingAdmin(admin.ModelAdmin):
                 base_info_fields.append('num_games')   
             else:   
                 base_info_fields.append('end_time')   
+            base_info_fields.append('table')   
             fieldsets.append(('基本信息', {'fields': tuple(base_info_fields)}))   
             fieldsets.append(('参与者', {'fields': ('participants',)})) # 参与者总是需要显示
-            if obj.status == 'CONFIRMED' and not obj.table: 
-                 fieldsets.append(   
-                     ('牌桌分配 (仅对已成行对局)', {   
-                         'fields': ('table',),   
-                     })   
-                 )   
         return fieldsets  
   
     # --- 修复 2: 优化 get_readonly_fields 逻辑 (与修复无关，保持不变) ---   
@@ -238,11 +233,10 @@ class BookingAdmin(admin.ModelAdmin):
                 if booking:   
                     conflicting_bookings = Booking.objects.filter(   
                         store=booking.store,   
-                        status='CONFIRMED',   
                         table__isnull=False,   
                         start_time__lt=booking.end_time,   
                         end_time__gt=booking.start_time  
-                    ).exclude(pk=booking.pk)   
+                    ).exclude(pk=booking.pk).exclude(status__in=['CANCELED', 'EXPIRED'])   
                     occupied_table_ids = conflicting_bookings.values_list('table_id', flat=True)   
                     kwargs["queryset"] = MahjongTable.objects.filter(   
                         store=booking.store  
