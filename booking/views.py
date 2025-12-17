@@ -61,7 +61,11 @@ def list_pending_bookings_view(request):
 def create_booking_view(request, store_id):
     store = get_object_or_404(Store, id=store_id)
     
-    if Booking.objects.filter(creator=request.user, status='PENDING').count() >= 2:
+    if Booking.objects.filter(
+        creator=request.user,
+        status='PENDING',
+        end_time__gte=timezone.now()
+    ).count() >= 2:
         messages.error(request, '您发起的待处理预约已达上限 (2个)。')
         return redirect('store_status')
     
