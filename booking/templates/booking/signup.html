@@ -1,13 +1,47 @@
 <!-- booking/templates/booking/signup.html -->
 {% extends 'booking/base.html' %}
 
-{% block title %}用户注册{% endblock %}
+{% block title %}注册新用户{% endblock %}
 
 {% block content %}
-    <h2>注册新用户</h2>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }} <!-- as_p 会将每个表单字段渲染在一个 <p> 标签中 -->
-        <button type="submit">注册</button>
-    </form>
+    <div class="container">
+        <h2 class="form-header">注册新用户</h2>
+        
+        {% if form.non_field_errors %}
+            <ul class="errorlist">
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            
+            {% for field in form %}
+                <div class="form-group">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}
+                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+                    {# 对于密码字段的额外提示信息，Django 默认会放在 help_text 里，这里用 helptext class 包裹 #}
+                    {% if field.name == 'password1' %}
+                        <div class="helptext">
+                            {{ field.help_text|safe }} {# 密码提示通常是 HTML 列表，需要 safe 过滤器 #}
+                        </div>
+                    {% endif %}
+                    {% if field.errors %}
+                        <ul class="errorlist">
+                            {% for error in field.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            
+            <button type="submit" class="btn-submit">注册</button>
+        </form>
+    </div>
 {% endblock %}

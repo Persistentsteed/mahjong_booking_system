@@ -71,28 +71,33 @@ class Booking(models.Model):
 
     # --- 重写 save 方法以适应新逻辑 ---
     def save(self, *args, **kwargs):
-        # 如果是按半庄数预约，并且 end_time 为空（即没有手动指定时间段）
-        # 那么根据半庄数自动计算 end_time
+        # 1. 确保 start_time 存在
         if not self.start_time:
-        # 这应该通过表单验证来避免，但这里做个兜底
-            self.start_time = timezone.now() 
-    
-        # 确保 num_games 始终有值，即使为 0
-        if self.booking_type == 'GAMES' and self.num_games is None:
-            self.num_games = 0
+           self.start_time = timezone.now() # 兜底，但最好在表单/视图层进行更严格的验证和错误提示
 
+        # 2. 只有当 end_time 尚未被明确设定时，才进行自动计算/默认值设定
+        # 如果用户在前端或视图中已经给 self.end_time 赋值了，这里就不动它
         if self.end_time is None:
-            if self.booking_type == 'GAMES' and self.num_games is not None:
-                duration_minutes = self.num_games * 45
-                self.end_time = self.start_time + datetime.timedelta(minutes=duration_minutes)
+            if self.booking_type == 'GAMES':
+                # 如果是 GAMES 类型，检查 num_games
+                if self.num_games is not None and self.num_games >= 0:
+                    duration_minutes = self.num_games * 45
+                    self.end_time = self.start_time + datetime.timedelta(minutes=duration_minutes)
+                else:
+                    # 如果 num_games 无效，给一个默认时长，避免 end_time 为 None
+                    self.end_time = self.start_time + datetime.timedelta(hours=1) 
             elif self.booking_type == 'DURATION':
-                # 如果是 DURATION 类型，但 end_time 还是 None，说明用户可能没填或出错
-                # 再次强调，这应该由表单/视图前端验证，这里做个兜底
-                self.end_time = self.start_time + datetime.timedelta(hours=1) # 默认1小时后结束
-            else:
-                # 既不是 GAMES 也不是 DURATION，或 num_games 无效，给个默认时长
+                # DURATION 类型如果 end_time 仍是 None，说明用户可能没填，给个默认值
                 self.end_time = self.start_time + datetime.timedelta(hours=1)
-        
+            else:
+                # 未知类型，也给个默认时长
+                self.end_time = self.start_time + datetime.timedelta(hours=1)
+            
+        # 3. 如果 end_time 仍然是 None（理论上不会，但做个双重检查）
+        # 且 start_time 有效，给个默认值
+        if self.end_time is None and self.start_time is not None:
+            self.end_time = self.start_time + datetime.timedelta(hours=1)
+
         super().save(*args, **kwargs)
 
     # --- 更新 __str__ 方法，使其更具可读性 ---

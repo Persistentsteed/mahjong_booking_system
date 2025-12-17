@@ -1,49 +1,153 @@
 <!-- booking/templates/booking/list_pending.html -->
 {% extends 'booking/base.html' %}
-{% block title %}加入对局{% endblock %}
+{% load booking_extras %} {# 如果这里需要自定义过滤器，请添加 #}
+
+{% block title %}可加入的对局{% endblock %}
+
 {% block content %}
-<h2>可加入的对局</h2>
-<table border="1" style="width: 100%; border-collapse: collapse;">
-    <thead>
-        <tr>
-            <th>门店</th>
-            <th>发起人</th>
-            <th>开始时间</th>
-            <th>当前人数</th>
-            <th>操作</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for booking in bookings %}
-        <tr>
-            <td>{{ booking.store.name }}</td>
-            <td>{{ booking.creator.username }}</td>
-            <td>{{ booking.start_time|date:"Y-m-d H:i" }}</td>
-            <td>
-                {{ booking.participants.count }} / 4
-                <small>({% for p in booking.participants.all %}{{ p.username }}{% if not forloop.last %}, {% endif %}{% endfor %})</small>
-            </td>
-            <td>
-                <!-- 检查用户是否已加入 且 人数未满 -->
-                {% if user.is_authenticated and user not in booking.participants.all and booking.participants.count < 4 %}
-                <form action="{% url 'join_booking' booking.id %}" method="post" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit">加入</button>
-                </form>
+    <style>
+        /* 从 base.html 复制过来的通用样式，但为了避免重复和冲突，会做调整，
+           理想情况下这些应该放在一个外部CSS文件，这里暂时内联以便快速演示。*/
+        
+        .table-container {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden; /* 确保圆角有效 */
+        }
+        .table-container th, .table-container td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+            vertical-align: middle;
+        }
+        .table-container th {
+            background-color: #e9ecef;
+            font-weight: bold;
+            color: #495057;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+        .table-container tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .table-container tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* 状态标记 */
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            font-weight: bold;
+            text-align: center;
+            min-width: 60px; /* 保证最小宽度 */
+        }
+        .status-PENDING { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; } /* 橙色系 */
+        .status-CONFIRMED { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; } /* 绿色系 */
+        .status-CANCELED, .status-EXPIRED { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; } /* 红色系 */
+        
+        /* 按钮样式 */
+        .action-button {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s ease;
+        }
+        .action-button:hover {
+            background-color: #0056b3;
+        }
+        .action-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .user-list {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+            display: block;
+        }
+    </style>
+
+    <h1>可加入的对局</h1>
+
+    <table class="table-container">
+        <thead>
+            <tr>
+                <th>门店</th>
+                <th>发起人</th>
+                <th>开始时间 - 结束时间</th>
+                <th>当前人数 / 满员</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for booking in bookings %}
+                {# 根据人数和状态应用不同背景色，方便识别 #}
+                {% if booking.participants.count == 4 %}
+                    <tr style="background-color: #e9f5e9;"> {# 已满员，提示性浅绿色 #}
                 {% elif user in booking.participants.all %}
-                    已加入
-                {% elif booking.participants.count >= 4 %}
-                    已满
+                    <tr style="background-color: #f0f8ff;"> {# 自己已加入，提示性浅蓝色 #}
                 {% else %}
-                    <a href="{% url 'login' %}?next={{ request.path }}">登录后加入</a>
+                    <tr>
                 {% endif %}
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="5" style="text-align: center;">当前没有等待凑桌的对局。</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                    <td>{{ booking.store.name }}</td>
+                    <td>{{ booking.creator.display_name|default:booking.creator.username }}</td>
+                    <td>
+                        {{ booking.start_time|date:"Y-m-d H:i" }} - 
+                        {{ booking.end_time|date:"Y-m-d H:i" }}
+                        <br>
+                        <small style="color: #888;">
+                            {{ booking.get_booking_type_display }}
+                            {% if booking.booking_type == 'GAMES' %} ({{ booking.num_games }}半庄){% endif %}
+                        </small>
+                    </td>
+                    <td>
+                        {{ booking.participants.count }} / 4
+                        <span class="user-list">
+                            ({% for p in booking.participants.all %}{{ p.display_name|default:p.username }}{% if not forloop.last %}, {% endif %}{% endfor %})
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge status-{{ booking.status }}">
+                            {{ booking.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if user.is_authenticated and user not in booking.participants.all and booking.participants.count < 4 %}
+                            <form action="{% url 'join_booking' booking.id %}" method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="action-button">加入</button>
+                            </form>
+                        {% else %}
+                            <button class="action-button" disabled>
+                                {% if user in booking.participants.all %}已加入
+                                {% elif booking.participants.count >= 4 %}已满
+                                {% else %}请登录
+                                {% endif %}
+                            </button>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 20px; color: #6c757d;">
+                        当前没有等待凑桌的对局。
+                        {% if user.is_authenticated %}
+                            <br>您可以去 <a href="{% url 'store_status' %}" style="color:#007bff;">门店首页</a> 发起新的对局!
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {% endblock %}

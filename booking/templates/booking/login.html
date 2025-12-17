@@ -4,10 +4,43 @@
 {% block title %}用户登录{% endblock %}
 
 {% block content %}
-    <h2>用户登录</h2>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">登录</button>
-    </form>
+    <div class="container">
+        <h2 class="form-header">用户登录</h2>
+        
+        {# Django 表单的非字段错误（例如用户名密码不匹配） #}
+        {% if form.non_field_errors %}
+            <ul class="errorlist">
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            
+            {% for field in form %}
+                <div class="form-group">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}
+                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+                    {% if field.errors %}
+                        <ul class="errorlist">
+                            {% for error in field.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            
+            <button type="submit" class="btn-submit">登录</button>
+        </form>
+
+        <p style="text-align: center; margin-top: 20px; font-size: 0.9rem; color: #666;">
+            还没有账号？<a href="{% url 'signup' %}" style="color: #007bff; text-decoration: none;">立即注册</a>
+        </p>
+    </div>
 {% endblock %}

@@ -52,6 +52,95 @@
         background-color: #d1ecf1;
         border-color: #bee5eb;
       }
+
+      .container {
+        max-width: 500px;
+        margin: 50px auto;
+        padding: 30px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      /* 表单标题 */
+      .form-header {
+        text-align: center;
+        margin-bottom: 25px;
+        color: #333;
+        font-size: 2rem;
+        font-weight: 600;
+      }
+
+      /* 表单字段样式 */
+      .form-group {
+        margin-bottom: 15px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #555;
+      }
+      .form-group input[type="text"],
+      .form-group input[type="password"],
+      .form-group input[type="email"],
+      .form-group input[type="datetime-local"],
+      .form-group input[type="number"] {
+        width: 100%;
+        padding: 10px 15px;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        box-sizing: border-box; /* 包含 padding 和 border */
+        font-size: 1rem;
+      }
+      .form-group input[type="text"]:focus,
+      .form-group input[type="password"]:focus,
+      .form-group input[type="email"]:focus,
+      .form-group input[type="datetime-local"]:focus,
+      .form-group input[type="number"]:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+
+      /* 按钮样式 */
+      .btn-submit {
+        width: 100%;
+        padding: 12px 15px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+      .btn-submit:hover {
+        background-color: #0056b3;
+      }
+
+      /* 错误信息样式 */
+      ul.errorlist {
+        color: #dc3545;
+        list-style-type: none;
+        padding: 0;
+        margin-top: 10px;
+        margin-bottom: 15px;
+      }
+      ul.errorlist li {
+        font-size: 0.9rem;
+      }
+
+      /* 密码要求等提示信息 */
+      .helptext ul {
+        font-size: 0.85rem;
+        color: #6c757d;
+        list-style-type: disc;
+        padding-left: 20px;
+        margin-top: 10px;
+      }
+
     </style>
   </head>
   <body>

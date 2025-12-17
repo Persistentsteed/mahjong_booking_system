@@ -58,63 +58,82 @@ def list_pending_bookings_view(request):
 
 # --- 视图 3: 创建预约 (重构) ---
 @login_required
-def create_booking_view(request, store_id): 
-    store = get_object_or_404(Store, id=store_id) 
-    if Booking.objects.filter(creator=request.user, status='PENDING').count() >= 2: 
-        messages.error(request, '您发起的待处理预约已达上限 (2个)。') 
-        return redirect('store_status') 
-    if request.method == 'POST': 
-        try: 
-            booking_type = request.POST.get('booking_type') 
-            # 统一获取开始时间
-            start_time_str = request.POST.get('start_time') 
-            start_time = None
-
-            # 根据类型去读不同名字的输入框
-            if booking_type == 'GAMES':
-                time_str = request.POST.get('start_time_games')
-            else: 
-                time_str = request.POST.get('start_time_duration')
+def create_booking_view(request, store_id):
+    store = get_object_or_404(Store, id=store_id)
+    
+    if Booking.objects.filter(creator=request.user, status='PENDING').count() >= 2:
+        messages.error(request, '您发起的待处理预约已达上限 (2个)。')
+        return redirect('store_status')
+    
+    if request.method == 'POST':
+        try:
+            booking_type = request.POST.get('booking_type')
             
-            if not time_str:
-                raise ValueError("请填写开始时间")
+            start_time_str = None
+            end_time_str = None
+
+            # 根据预约类型获取不同的 input name
+            if booking_type == 'GAMES':
+                start_time_str = request.POST.get('start_time_games')
+                # num_games 必须在这里获取，即使是 GAMES 类型，因为后面要用
+                num_games = int(request.POST.get('num_games', 0))
+                if num_games <= 0: raise ValueError("半庄数必须大于0。")
+
+            elif booking_type == 'DURATION':
+                start_time_str = request.POST.get('start_time_duration')
+                end_time_str = request.POST.get('end_time_duration') # ★★★ 新的 name ★★★
+                num_games = None # 按时间段预约时，半庄数设为 None
+
+            else:
+                raise ValueError("无效的预约类型。")
+
+            # 统一解析开始时间
+            if not start_time_str:
+                raise ValueError("请填写开始时间。")
+            start_time = timezone.make_aware(datetime.datetime.fromisoformat(start_time_str))
+
+            # 根据 booking_type 构造 Booking 对象
+            if booking_type == 'GAMES':
+                # 结束时间在 save 方法中计算
+                booking = Booking(
+                    creator=request.user, 
+                    store=store, 
+                    start_time=start_time,
+                    booking_type='GAMES', 
+                    num_games=num_games,
+                    # end_time 先不赋值，让模型 save 方法去计算
+                )
+
+            elif booking_type == 'DURATION':
+                if not end_time_str:
+                    raise ValueError("请填写结束时间。")
+                end_time = timezone.make_aware(datetime.datetime.fromisoformat(end_time_str))
                 
-            start_time = timezone.make_aware(datetime.datetime.fromisoformat(time_str))
-
-            # 根据不同的预约类型处理
-            if booking_type == 'GAMES': 
-                num_games = int(request.POST.get('num_games', 4)) 
-                if num_games <= 0: raise ValueError("半庄数必须大于0。") 
-                # 结束时间会在 save 方法中自动计算
-                booking = Booking( 
-                    creator=request.user, store=store, start_time=start_time, 
-                    booking_type='GAMES', num_games=num_games
-                ) 
-                  # 手动计算一次 end_time，用于后续的冲突检测
-                booking.end_time = start_time + datetime.timedelta(minutes=num_games * 45) 
-            elif booking_type == 'DURATION': 
-                end_time_str = request.POST.get('end_time') 
-                end_time = timezone.make_aware(datetime.datetime.fromisoformat(end_time_str)) 
-                if end_time <= start_time: 
-                    raise ValueError("结束时间必须晚于开始时间。") 
-                booking = Booking( 
-                    creator=request.user, store=store, start_time=start_time, 
-                    booking_type='DURATION', end_time=end_time
-                ) 
-            else: 
-                raise ValueError("无效的预约类型。") 
-
-            # [可选但推荐] 牌桌冲突预检查
-            # ... 可以在这里添加一个简单的逻辑，检查该时间段是否有空桌 ... 
+                if end_time <= start_time:
+                    raise ValueError("结束时间必须晚于开始时间。")
+                    
+                booking = Booking(
+                    creator=request.user, 
+                    store=store, 
+                    start_time=start_time,
+                    booking_type='DURATION', 
+                    end_time=end_time,
+                    num_games=None, # 按时间段预约时，半庄数为空
+                )
+            # else 已经在上面处理了
 
             booking.save() # 调用 save() 会处理 end_time 的最终计算
-            booking.participants.add(request.user) 
-            messages.success(request, '预约已成功发起！') 
-            return redirect('my_bookings') 
-        except (ValueError, TypeError) as e: 
-            messages.error(request, f'输入有误: {e}') 
-            return redirect('create_booking', store_id=store_id) 
-    return render(request, 'booking/create_booking.html', {'store': store}) 
+            booking.participants.add(request.user)
+            messages.success(request, '预约已成功发起！')
+            return redirect('my_bookings')
+
+        except (ValueError, TypeError) as e:
+            messages.error(request, f'输入有误: {e}')
+            # 渲染回表单，保留已填数据（可选，这里只是简单重定向）
+            return redirect('create_booking', store_id=store_id)
+            
+    # GET 请求时渲染表单 (保持不变)
+    return render(request, 'booking/create_booking.html', {'store': store})
 
 # --- 视图 4: 加入预约 (全新) ---
 @login_required
