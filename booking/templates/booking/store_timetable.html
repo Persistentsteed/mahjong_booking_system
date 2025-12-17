@@ -162,7 +162,9 @@
             <tr>
                 <th style="width: 80px;">时间</th>
                 {% for table in tables %}
-                <th>{{ table.table_number }}</th>
+                <th>
+                    {{ table.display_label }}
+                </th>
                 {% endfor %}
             </tr>
         </thead>

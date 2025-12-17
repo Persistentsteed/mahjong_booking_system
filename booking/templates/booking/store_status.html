@@ -102,13 +102,14 @@
         </div>
 
         <div class="tables-grid">
-            {% for table in store.tables.all %}
+            {% for table in store.sorted_tables %}
                 {% with booking=bookings_by_table|get_item:table.id %}
                     {% if booking %}
                         <!-- 忙碌状态 -->
                         <div class="table-card table-busy">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <strong>{{ table.table_number }} (使用中)</strong>
+                                <strong>{{ table.display_label }}</strong>
+                                <span> (使用中) </span>
                                 <span class="status-badge">
                                     {{ booking.num_games|default:"-" }} 半庄
                                 </span>
@@ -136,7 +137,7 @@
                     {% else %}
                         <!-- 空闲状态 -->
                         <div class="table-card table-free">
-                            <strong>{{ table.table_number }}</strong>
+                            <strong>{{ table.display_label }}</strong>
                             <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
                                 当前空闲
                             </div>

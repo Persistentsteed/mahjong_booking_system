@@ -23,6 +23,8 @@ except ImportError:
 # --- 视图 1: 门店对局情况 (重构) ---
 def store_status_view(request):
     stores = Store.objects.prefetch_related('tables').all()
+    for store in stores:
+        store.sorted_tables = store.tables.all().order_by('table_number')
     now = timezone.now()
     
     # --- 核心修正 ---
@@ -256,7 +258,7 @@ def store_timetable_view(request, store_id):
     context = {
         'store': store,
         'bookings_by_table': bookings_by_table,
-        'tables': store.tables.all(),
+        'tables': store.tables.all().order_by('table_number'),
         'time_slots': time_slots,
         'timetable_start_datetime': start_of_view, # 将完整的 datetime 对象传递过去
         'timeline_start_display_hour': timeline_start_display_hour, # 用于在标题显示范围

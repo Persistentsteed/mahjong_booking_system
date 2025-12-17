@@ -32,7 +32,8 @@ class MahjongTableAdmin(admin.ModelAdmin):
     """
     麻将桌模型后台管理
     """
-    list_display = ('table_number', 'store', 'get_current_status')
+    list_display = ('store', 'table_number', 'alias', 'get_current_status')
+    ordering = ('store__name', 'table_number')
     list_filter = ('store',)
     actions = ['create_walk_in_booking'] # 管理员操作：创建散客对局
 

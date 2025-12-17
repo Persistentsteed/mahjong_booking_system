@@ -23,14 +23,20 @@ class Store(models.Model):
 class MahjongTable(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='tables', verbose_name="所属门店")
     table_number = models.CharField(max_length=20, verbose_name="桌号")
+    alias = models.CharField(max_length=50, blank=True, null=True, verbose_name="别名/位置描述")
     
     class Meta:
         unique_together = ('store', 'table_number')
         verbose_name = "麻将桌"
         verbose_name_plural = verbose_name
 
+    def display_label(self):
+        if self.alias:
+            return f"{self.table_number} - {self.alias}"
+        return self.table_number
+
     def __str__(self):
-        return f"{self.store.name} - {self.table_number}"
+        return self.display_label()
 
 # 3. 预约/对局记录模型
 class Booking(models.Model):
