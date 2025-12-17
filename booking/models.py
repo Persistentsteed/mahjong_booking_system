@@ -2,6 +2,7 @@
 
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
 User = settings.AUTH_USER_MODEL 
 from django.utils import timezone
 import datetime
@@ -96,6 +97,11 @@ class Booking(models.Model):
             self.end_time = self.start_time + datetime.timedelta(hours=1)
 
         super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        if self.table and self.store and self.table.store_id != self.store_id:
+            raise ValidationError({'table': "所选牌桌不属于当前门店，请重新选择。"})
 
     # --- 更新 __str__ 方法，使其更具可读性 ---
     def __str__(self):

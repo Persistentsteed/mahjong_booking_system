@@ -155,6 +155,19 @@ class BookingAdmin(admin.ModelAdmin):
     change_form_template = "admin/booking/booking/change_form.html"
     actions = ['confirm_selected_bookings', 'export_bookings_to_xlsx', 'export_schedule_to_xlsx'] # 在这里添加新的 Action
 
+    def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        tables = MahjongTable.objects.select_related('store').order_by('store__name', 'table_number')
+        extra_context['tables_data'] = [
+            {
+                'id': table.id,
+                'store_id': table.store_id,
+                'label': table.display_label()
+            }
+            for table in tables
+        ]
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
     def confirm_selected_bookings(self, request, queryset):       
         valid_bookings = queryset.filter(status='PENDING').annotate(p_count=Count('participants')).filter(p_count=4)       
               

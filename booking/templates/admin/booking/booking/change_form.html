@@ -1,5 +1,67 @@
 {% extends "admin/change_form.html" %}
 
+{% block extrahead %}
+{{ block.super }}
+{% if tables_data %}
+    {{ tables_data|json_script:"booking-tables-data" }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const dataElement = document.getElementById('booking-tables-data');
+            if (!dataElement) return;
+            let tables = [];
+            try {
+                tables = JSON.parse(dataElement.textContent);
+            } catch (e) {
+                console.error('无法解析牌桌数据', e);
+                return;
+            }
+            const tablesByStore = tables.reduce((acc, item) => {
+                if (!acc[item.store_id]) {
+                    acc[item.store_id] = [];
+                }
+                acc[item.store_id].push({ id: item.id, label: item.label });
+                return acc;
+            }, {});
+            const storeField = document.getElementById('id_store');
+            const tableField = document.getElementById('id_table');
+            if (!storeField || !tableField) return;
+
+            function renderTableOptions(selectedTableId) {
+                const storeId = storeField.value;
+                tableField.innerHTML = '';
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = storeId ? '请选择牌桌' : '请先选择门店';
+                tableField.appendChild(placeholder);
+                if (!storeId) {
+                    tableField.disabled = true;
+                    return;
+                }
+                tableField.disabled = false;
+                const rows = tablesByStore[storeId] || [];
+                rows.forEach(row => {
+                    const option = document.createElement('option');
+                    option.value = row.id;
+                    option.textContent = row.label;
+                    if (selectedTableId && selectedTableId === String(row.id)) {
+                        option.selected = true;
+                    }
+                    tableField.appendChild(option);
+                });
+            }
+
+            const initialStoreId = storeField.value;
+            const initialTableId = tableField.value;
+            renderTableOptions(initialTableId && initialStoreId ? initialTableId : null);
+
+            storeField.addEventListener('change', function() {
+                renderTableOptions(null);
+            });
+        });
+    </script>
+{% endif %}
+{% endblock %}
+
 {% block submit_buttons_bottom %}
 {{ block.super }}
 <div class="submit-row">

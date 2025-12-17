@@ -7,6 +7,17 @@
 {% block content %}
 <style>
     /* 增加一些简单的内联样式来美化按钮和布局 */
+    .status-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 16px 10px;
+        box-sizing: border-box;
+    }
+    @media (max-width: 768px) {
+        .status-page {
+            padding: 0 12px 10px;
+        }
+    }
     .store-card {
         border: 1px solid #dee2e6;
         border-radius: 16px;
@@ -131,10 +142,6 @@
             margin-bottom: 0;
             min-width: auto;
         }
-        .store-card {
-            margin-left: 10px;
-            margin-right: 10px;
-        }
     }
     @media (max-width: 600px) {
         .tables-grid {
@@ -149,82 +156,84 @@
     }
 </style>
 
-<h1 style="line-height:1.2;">各门店实时对局情况<br><small style="font-size:1rem;color:#555;">{{ now|date:"Y-m-d H:i" }}</small></h1>
+<div class="status-page">
+    <h1 style="line-height:1.2;">各门店实时对局情况<br><small style="font-size:1rem;color:#555;">{{ now|date:"Y-m-d H:i" }}</small></h1>
 
-{% if not stores %}
-    <p>管理员尚未添加任何门店信息。</p>
-{% endif %}
+    {% if not stores %}
+        <p>管理员尚未添加任何门店信息。</p>
+    {% endif %}
 
-{% for store in stores %}
-    <div class="store-card">
-        <div class="store-header">
-            <div class="store-info">
-                <h2>{{ store.name }}</h2>
-                <p>{{ store.address }} (共 {{ store.tables.count }} 桌)</p>
-            </div>
-            <div class="store-actions">
-                {% if user.is_authenticated %}
-                    <!-- 发起预约按钮 -->
-                    <a href="{% url 'create_booking' store.id %}" class="btn btn-primary">发起预约</a>
-                    <!-- 查看图形化课表按钮 (新增) -->
-                    <a href="{% url 'store_timetable' store.id %}" class="btn btn-outline">📊 查看时间表</a>
-                {% else %}
-                    <a href="{% url 'login' %}?next={{ request.path }}" class="btn" style="background:#eee; color:#666; border:1px solid #ccc;">登录后操作</a>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="tables-grid">
-            {% for table in store.sorted_tables %}
-                {% with booking=bookings_by_table|get_item:table.id %}
-                    {% if booking %}
-                        <!-- 忙碌状态 -->
-                        <div class="table-card table-busy">
-                            <div class="table-card-head">
-                                <span class="table-label">{{ table.display_label }}</span>
-                                <span class="table-state">使用中</span>
-                                <span class="status-badge">
-                                    {{ booking.num_games|default:"-" }} 半庄
-                                </span>
-                            </div>
-
-                            <div class="desktop-info">
-                                <div class="info-row" style="margin-top:8px;">
-                                    <strong>对局者:</strong>
-                                    {% for player in booking.participants.all %}
-                                        {{ player.display_name|default:player.username }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
-                                </div>
-                                
-                                <div class="info-row">
-                                    <strong>发起人:</strong> 
-                                    {{ booking.creator.display_name|default:booking.creator.username }}
-                                </div>
-
-                                <div class="info-row">
-                                    <strong>时间:</strong>
-                                    {{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}
-                                </div>
-                            </div>
-                        </div>
+    {% for store in stores %}
+        <div class="store-card">
+            <div class="store-header">
+                <div class="store-info">
+                    <h2>{{ store.name }}</h2>
+                    <p>{{ store.address }} (共 {{ store.tables.count }} 桌)</p>
+                </div>
+                <div class="store-actions">
+                    {% if user.is_authenticated %}
+                        <!-- 发起预约按钮 -->
+                        <a href="{% url 'create_booking' store.id %}" class="btn btn-primary">发起预约</a>
+                        <!-- 查看图形化课表按钮 (新增) -->
+                        <a href="{% url 'store_timetable' store.id %}" class="btn btn-outline">📊 查看时间表</a>
                     {% else %}
-                        <!-- 空闲状态 -->
-                        <div class="table-card table-free">
-                            <div class="table-card-head">
-                                <span class="table-label">{{ table.display_label }}</span>
-                                <span class="table-state">空闲</span>
-                            </div>
-                            <div class="desktop-info">
-                                <div class="info-row" style="margin-top:6px; color:#155724;">
-                                    立即可用
+                        <a href="{% url 'login' %}?next={{ request.path }}" class="btn" style="background:#eee; color:#666; border:1px solid #ccc;">登录后操作</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="tables-grid">
+                {% for table in store.sorted_tables %}
+                    {% with booking=bookings_by_table|get_item:table.id %}
+                        {% if booking %}
+                            <!-- 忙碌状态 -->
+                            <div class="table-card table-busy">
+                                <div class="table-card-head">
+                                    <span class="table-label">{{ table.display_label }}</span>
+                                    <span class="table-state">使用中</span>
+                                    <span class="status-badge">
+                                        {{ booking.num_games|default:"-" }} 半庄
+                                    </span>
+                                </div>
+
+                                <div class="desktop-info">
+                                    <div class="info-row" style="margin-top:8px;">
+                                        <strong>对局者:</strong>
+                                        {% for player in booking.participants.all %}
+                                            {{ player.display_name|default:player.username }}{% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <div class="info-row">
+                                        <strong>发起人:</strong> 
+                                        {{ booking.creator.display_name|default:booking.creator.username }}
+                                    </div>
+                                    
+                                    <div class="info-row">
+                                        <strong>时间:</strong> 
+                                        {{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    {% endif %}
-                {% endwith %}
-            {% endfor %}
+                        {% else %}
+                            <!-- 空闲状态 -->
+                            <div class="table-card table-free">
+                                <div class="table-card-head">
+                                    <span class="table-label">{{ table.display_label }}</span>
+                                    <span class="table-state">空闲</span>
+                                </div>
+                                <div class="desktop-info">
+                                    <div class="info-row" style="margin-top:6px; color:#155724;">
+                                        立即可用
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                {% endfor %}
+            </div>
         </div>
-    </div>
-{% endfor %}
+    {% endfor %}
+</div>
 
 {% endblock %}
