@@ -1,11 +1,14 @@
 # booking/admin.py
 
 from django.contrib import admin
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.utils import timezone
 from django.conf import settings 
 from django import forms
 from django.contrib.admin.helpers import ActionForm
+from django.shortcuts import redirect
+from django.urls import reverse
+from collections import defaultdict
 import datetime
 # 从 accounts.models 导入 CustomUser（确保路径正确）
 from accounts.models import CustomUser 
@@ -57,8 +60,8 @@ class MahjongTableAdmin(admin.ModelAdmin):
             store=table.store,
             table=table,
             start_time=now,
+            end_time=now + datetime.timedelta(hours=3),
             num_games=4,           # 默认4个半庄
-            booking_type='GAMES',  # 明确指定预约类型为按半庄数
             status='CONFIRMED',    # 直接设置为已成行
             # end_time 会在 Booking 模型的 save 方法中根据 num_games 自动计算
         )
@@ -90,13 +93,41 @@ class BookingExportActionForm(ActionForm):
     )
 
 
+class BookingStageFilter(admin.SimpleListFilter):
+    title = "对局阶段"
+    parameter_name = "booking_stage"
+
+    def lookups(self, request, model_admin):
+        return (
+            ('upcoming', '预约对局'),
+            ('ongoing', '进行中对局'),
+            ('finished', '已完成对局'),
+        )
+
+    def queryset(self, request, queryset):
+        now = timezone.now()
+        if self.value() == 'upcoming':
+            return queryset.filter(start_time__gt=now, status__in=['PENDING', 'CONFIRMED'])
+        if self.value() == 'ongoing':
+            return queryset.filter(
+                start_time__lte=now,
+                end_time__gte=now,
+                status__in=['CONFIRMED']
+            )
+        if self.value() == 'finished':
+            return queryset.filter(
+                Q(end_time__lt=now) | Q(status__in=['COMPLETED', 'CANCELED', 'EXPIRED'])
+            )
+        return queryset
+
+
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
     """
     对局预约模型后台管理
     """
-    list_display = ('creator', 'store', 'booking_type', 'start_time', 'end_time', 'status', 'get_participant_count', 'table')
-    list_filter = ('status', 'store', 'booking_type', 'start_time')
+    list_display = ('creator', 'store', 'start_time', 'end_time', 'num_games', 'status', 'get_participant_count', 'table')
+    list_filter = ('status', BookingStageFilter, 'store', 'start_time')
     search_fields = ('creator__username', 'creator__display_name', 'store__name')
     autocomplete_fields = ['creator', 'participants'] 
     action_form = BookingExportActionForm
@@ -107,7 +138,6 @@ class BookingAdmin(admin.ModelAdmin):
         if 'participants' in form.base_fields:
             form.base_fields['participants'].required = False
         
-        # num_games 和 end_time 也是在不同 booking_type 下互斥的，设为非必填
         if 'num_games' in form.base_fields:
             form.base_fields['num_games'].required = False
         if 'end_time' in form.base_fields:
@@ -121,6 +151,7 @@ class BookingAdmin(admin.ModelAdmin):
     get_participant_count.short_description = '参与人数'       
   
     # --- 管理员 Actions ---
+    change_form_template = "admin/booking/booking/change_form.html"
     actions = ['confirm_selected_bookings', 'export_bookings_to_xlsx', 'export_schedule_to_xlsx'] # 在这里添加新的 Action
 
     def confirm_selected_bookings(self, request, queryset):       
@@ -180,7 +211,6 @@ class BookingAdmin(admin.ModelAdmin):
             ("参与者", 30), # 参与者可能较多，宽度大一些  
             ("门店", 15),   
             ("牌桌", 10),   
-            ("预约类型", 10),   
             ("半庄数", 8),   
             ("开始时间", 20),   
             ("结束时间", 20),   
@@ -221,12 +251,11 @@ class BookingAdmin(admin.ModelAdmin):
             worksheet.cell(row=row_num, column=3).border = thin_border  
             worksheet.cell(row=row_num, column=4, value=booking.store.name).border = thin_border  
             worksheet.cell(row=row_num, column=5, value=booking.table.table_number if booking.table else "未分配").border = thin_border  
-            worksheet.cell(row=row_num, column=6, value=booking.get_booking_type_display()).border = thin_border  
-            worksheet.cell(row=row_num, column=7, value=booking.num_games if booking.num_games is not None else "-").border = thin_border
-            worksheet.cell(row=row_num, column=8, value=start_time_local.strftime('%Y-%m-%d %H:%M') if start_time_local else "").border = thin_border
-            worksheet.cell(row=row_num, column=9, value=end_time_local.strftime('%Y-%m-%d %H:%M') if end_time_local else "").border = thin_border  
-            worksheet.cell(row=row_num, column=10, value=booking.get_status_display()).border = thin_border  
-            worksheet.cell(row=row_num, column=11, value=created_at_local.strftime('%Y-%m-%d %H:%M') if created_at_local else "").border = thin_border
+            worksheet.cell(row=row_num, column=6, value=booking.num_games if booking.num_games is not None else "-").border = thin_border
+            worksheet.cell(row=row_num, column=7, value=start_time_local.strftime('%Y-%m-%d %H:%M') if start_time_local else "").border = thin_border
+            worksheet.cell(row=row_num, column=8, value=end_time_local.strftime('%Y-%m-%d %H:%M') if end_time_local else "").border = thin_border  
+            worksheet.cell(row=row_num, column=9, value=booking.get_status_display()).border = thin_border  
+            worksheet.cell(row=row_num, column=10, value=created_at_local.strftime('%Y-%m-%d %H:%M') if created_at_local else "").border = thin_border
               
             row_num += 1  
   
@@ -238,14 +267,16 @@ class BookingAdmin(admin.ModelAdmin):
     def export_schedule_to_xlsx(self, request, queryset):
         queryset, start_dt, end_dt = self._filter_queryset_by_dates(request, queryset)
         if not start_dt:
-            self.message_user(request, "请至少选择一个开始日期以导出课表。", level='ERROR')
+            self.message_user(request, "请至少选择一个开始日期以导出对局记录。", level='ERROR')
             return
         if not end_dt:
             end_dt = start_dt
         if end_dt < start_dt:
             start_dt, end_dt = end_dt, start_dt
 
-        bookings = queryset.select_related('store', 'table', 'creator')
+        bookings = queryset.select_related('store', 'table', 'creator') \
+                           .prefetch_related('participants', 'store__tables') \
+                           .order_by('start_time')
         if not bookings.exists():
             self.message_user(request, "选定范围内没有预约记录。", level='WARNING')
             return
@@ -259,86 +290,134 @@ class BookingAdmin(admin.ModelAdmin):
         workbook.remove(workbook.active)
 
         local_tz = timezone.get_current_timezone()
-        day_cursor = start_dt.date()
-        end_day = end_dt.date()
+        start_day = timezone.localtime(start_dt, local_tz).date()
+        end_day = timezone.localtime(end_dt, local_tz).date()
 
-        while day_cursor <= end_day:
-            day_start = datetime.datetime.combine(day_cursor, datetime.time.min, tzinfo=local_tz)
-            day_end = datetime.datetime.combine(day_cursor, datetime.time.max, tzinfo=local_tz)
+        bookings_list = list(bookings)
+        store_cache = {b.store_id: b.store for b in bookings_list}
 
-            day_bookings = [
-                b for b in bookings
-                if timezone.localtime(b.start_time, local_tz) <= day_end and timezone.localtime(b.end_time, local_tz) >= day_start
-            ]
+        current_day = start_day
+        while current_day <= end_day:
+            day_start = datetime.datetime.combine(current_day, datetime.time.min)
+            day_start = timezone.make_aware(day_start, local_tz)
+            day_end = day_start + datetime.timedelta(days=1)
 
-            stores = {}
-            for b in day_bookings:
-                stores.setdefault(b.store_id, {'store': b.store, 'bookings': []})
-                stores[b.store_id]['bookings'].append(b)
+            for store_id, store in store_cache.items():
+                day_store_bookings = [
+                    b for b in bookings_list
+                    if b.store_id == store_id
+                    and timezone.localtime(b.end_time, local_tz) > day_start
+                    and timezone.localtime(b.start_time, local_tz) < day_end
+                ]
+                if not day_store_bookings:
+                    continue
 
-            for info in stores.values():
-                store = info['store']
-                store_tables = list(store.tables.all().order_by('table_number'))
-                sheet_name = f"{day_cursor.strftime('%m%d')}-{store.name}"[:31]
+                sheet_name = f"{current_day.strftime('%m%d')}-{store.name}"[:31]
                 sheet = workbook.create_sheet(title=sheet_name)
+                self._build_schedule_sheet(sheet, day_start, store, day_store_bookings, local_tz)
 
-                header = ["时间"] + [t.table_number for t in store_tables] + ["未分配"]
-                sheet.append(header)
-                bold_font = Font(bold=True)
-                for col in range(1, len(header) + 1):
-                    cell = sheet.cell(row=1, column=col)
-                    cell.font = bold_font
-                    cell.alignment = Alignment(horizontal="center", vertical="center")
-
-                for hour in range(24):
-                    slot_start = day_start + datetime.timedelta(hours=hour)
-                    slot_end = slot_start + datetime.timedelta(hours=1)
-                    row = [f"{slot_start.strftime('%H:%M')} - {slot_end.strftime('%H:%M')}"]
-                    table_texts = [""] * len(store_tables)
-                    unassigned_texts = []
-
-                    for booking in info['bookings']:
-                        start = timezone.localtime(booking.start_time, local_tz)
-                        end = timezone.localtime(booking.end_time, local_tz)
-                        if start >= slot_end or end <= slot_start:
-                            continue
-
-                        text = f"{start.strftime('%H:%M')}-{end.strftime('%H:%M')}\n{booking.creator.display_name or booking.creator.username}\n{booking.get_booking_type_display()}"
-                        if booking.table:
-                            try:
-                                idx = store_tables.index(booking.table)
-                                table_texts[idx] = text if not table_texts[idx] else f"{table_texts[idx]}\n{text}"
-                            except ValueError:
-                                unassigned_texts.append(text)
-                        else:
-                            unassigned_texts.append(text)
-
-                    row.extend(table_texts)
-                    row.append("\n\n".join(unassigned_texts))
-                    sheet.append(row)
-
-            day_cursor += datetime.timedelta(days=1)
+            current_day += datetime.timedelta(days=1)
 
         workbook.save(response)
         return response
 
     export_schedule_to_xlsx.short_description = "导出对局记录（按日期范围）"
+
+    def _build_schedule_sheet(self, sheet, day_start, store, bookings, local_tz):
+        sheet.cell(row=1, column=1, value="表号")
+        sheet.cell(row=2, column=1, value="时间")
+
+        block_headers = ["起止时间", "半庄数", "参与者1", "参与者2", "参与者3", "参与者4"]
+        tables = list(store.tables.all().order_by('table_number'))
+
+        table_booking_map = defaultdict(list)
+        unassigned = []
+        for booking in bookings:
+            if booking.table_id:
+                table_booking_map[booking.table_id].append(booking)
+            else:
+                unassigned.append(booking)
+
+        table_blocks = [(t.table_number, t.id) for t in tables]
+        if unassigned:
+            table_blocks.append(("未分配", None))
+
+        width = len(block_headers)
+        for idx, (table_name, table_id) in enumerate(table_blocks):
+            base_col = 2 + idx * width
+            sheet.merge_cells(start_row=1, start_column=base_col, end_row=1, end_column=base_col + width - 1)
+            cell = sheet.cell(row=1, column=base_col, value=str(table_name))
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.font = Font(bold=True)
+
+            for offset, header in enumerate(block_headers):
+                header_cell = sheet.cell(row=2, column=base_col + offset, value=header)
+                header_cell.font = Font(bold=True)
+                header_cell.alignment = Alignment(horizontal="center", vertical="center")
+                sheet.column_dimensions[get_column_letter(base_col + offset)].width = 16 if offset == 0 else 14
+
+            relevant = table_booking_map[table_id] if table_id else unassigned
+            self._fill_table_block(sheet, base_col, relevant, day_start, local_tz)
+
+        for hour in range(24):
+            row = 3 + hour
+            slot_start = day_start + datetime.timedelta(hours=hour)
+            slot_end = slot_start + datetime.timedelta(hours=1)
+            sheet.cell(row=row, column=1, value=f"{slot_start.strftime('%H:%M')} - {slot_end.strftime('%H:%M')}")
+
+    def _fill_table_block(self, sheet, base_col, bookings, day_start, local_tz):
+        def append_cell(cell, text):
+            if not text:
+                return
+            if cell.value:
+                cell.value = f"{cell.value}\n{text}"
+            else:
+                cell.value = text
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+
+        for booking in bookings:
+            start_local = timezone.localtime(booking.start_time, local_tz)
+            end_local = timezone.localtime(booking.end_time, local_tz)
+            hour_offset = int(max(0, min(23, (start_local - day_start).total_seconds() // 3600)))
+            row = 3 + hour_offset
+
+            append_cell(sheet.cell(row=row, column=base_col), f"{start_local.strftime('%H:%M')} - {end_local.strftime('%H:%M')}")
+            append_cell(sheet.cell(row=row, column=base_col + 1), str(booking.num_games or ""))
+
+            participants = list(booking.participants.all())
+            for idx in range(4):
+                name = ""
+                if idx < len(participants):
+                    participant = participants[idx]
+                    name = participant.display_name or participant.username
+                append_cell(sheet.cell(row=row, column=base_col + 2 + idx), name)
+
+    def response_change(self, request, obj):
+        if "_duplicate_and_edit" in request.POST:
+            original_participants = list(obj.participants.all())
+            obj.pk = None
+            obj.created_at = timezone.now()
+            obj.save()
+            obj.participants.set(original_participants)
+            self.message_user(
+                request,
+                "已复制当前对局，请更改对局时间、半庄数及对局者后保存。",
+                level='SUCCESS'
+            )
+            change_url = reverse("admin:booking_booking_change", args=[obj.pk])
+            return redirect(change_url)
+        return super().response_change(request, obj)
   
     # --- 核心改动 1: 动态显示和编辑字段 (与修复无关，保持不变) ---   
     def get_fieldsets(self, request, obj=None):   
         fieldsets = []   
         if obj is None:   
             fieldsets.append(('基本信息', {   
-                'fields': ('creator', 'store', 'booking_type', 'status', 'start_time', 'end_time', 'num_games', 'table')   
+                'fields': ('creator', 'store', 'status', 'start_time', 'end_time', 'num_games', 'table')   
             }))   
             fieldsets.append(('参与者', {'fields': ('participants',)}))   
         else:   
-            base_info_fields = ['creator', 'store', 'booking_type', 'status', 'start_time']   
-            if obj.booking_type == 'GAMES':   
-                base_info_fields.append('num_games')   
-            else:   
-                base_info_fields.append('end_time')   
-            base_info_fields.append('table')   
+            base_info_fields = ['creator', 'store', 'status', 'start_time', 'end_time', 'num_games', 'table']   
             fieldsets.append(('基本信息', {'fields': tuple(base_info_fields)}))   
             fieldsets.append(('参与者', {'fields': ('participants',)})) # 参与者总是需要显示
         return fieldsets  
@@ -347,11 +426,7 @@ class BookingAdmin(admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):   
         read_only_fields = ['created_at']   
         if obj:   
-            read_only_fields.extend(['creator', 'booking_type', 'start_time'])   
-            if obj.booking_type == 'GAMES':   
-                read_only_fields.append('end_time')   
-            else:   
-                read_only_fields.append('num_games')   
+            read_only_fields.extend(['creator', 'start_time'])   
         return tuple(read_only_fields)   
   
     # --- 核心改动 2: 筛选出可分配的牌桌 (与修复无关，保持不变) ---   

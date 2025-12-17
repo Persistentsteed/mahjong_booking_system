@@ -67,62 +67,30 @@ def create_booking_view(request, store_id):
     
     if request.method == 'POST':
         try:
-            booking_type = request.POST.get('booking_type')
-            
-            start_time_str = None
-            end_time_str = None
+            start_time_str = request.POST.get('start_time')
+            end_time_str = request.POST.get('end_time')
+            num_games = int(request.POST.get('num_games', 0))
 
-            # 根据预约类型获取不同的 input name
-            if booking_type == 'GAMES':
-                start_time_str = request.POST.get('start_time_games')
-                # num_games 必须在这里获取，即使是 GAMES 类型，因为后面要用
-                num_games = int(request.POST.get('num_games', 0))
-                if num_games <= 0: raise ValueError("半庄数必须大于0。")
+            if not start_time_str or not end_time_str:
+                raise ValueError("请填写开始与结束时间。")
+            if num_games <= 0:
+                raise ValueError("半庄数必须大于0。")
 
-            elif booking_type == 'DURATION':
-                start_time_str = request.POST.get('start_time_duration')
-                end_time_str = request.POST.get('end_time_duration') # ★★★ 新的 name ★★★
-                num_games = None # 按时间段预约时，半庄数设为 None
-
-            else:
-                raise ValueError("无效的预约类型。")
-
-            # 统一解析开始时间
-            if not start_time_str:
-                raise ValueError("请填写开始时间。")
             start_time = timezone.make_aware(datetime.datetime.fromisoformat(start_time_str))
+            end_time = timezone.make_aware(datetime.datetime.fromisoformat(end_time_str))
 
-            # 根据 booking_type 构造 Booking 对象
-            if booking_type == 'GAMES':
-                # 结束时间在 save 方法中计算
-                booking = Booking(
-                    creator=request.user, 
-                    store=store, 
-                    start_time=start_time,
-                    booking_type='GAMES', 
-                    num_games=num_games,
-                    # end_time 先不赋值，让模型 save 方法去计算
-                )
+            if end_time <= start_time:
+                raise ValueError("结束时间必须晚于开始时间。")
 
-            elif booking_type == 'DURATION':
-                if not end_time_str:
-                    raise ValueError("请填写结束时间。")
-                end_time = timezone.make_aware(datetime.datetime.fromisoformat(end_time_str))
-                
-                if end_time <= start_time:
-                    raise ValueError("结束时间必须晚于开始时间。")
-                    
-                booking = Booking(
-                    creator=request.user, 
-                    store=store, 
-                    start_time=start_time,
-                    booking_type='DURATION', 
-                    end_time=end_time,
-                    num_games=None, # 按时间段预约时，半庄数为空
-                )
-            # else 已经在上面处理了
+            booking = Booking(
+                creator=request.user,
+                store=store,
+                start_time=start_time,
+                end_time=end_time,
+                num_games=num_games,
+            )
 
-            booking.save() # 调用 save() 会处理 end_time 的最终计算
+            booking.save()
             booking.participants.add(request.user)
             messages.success(request, '预约已成功发起！')
             return redirect('my_bookings')
@@ -208,7 +176,11 @@ def cancel_booking_view(request, booking_id):
 @login_required
 def my_bookings_view(request):
     # joined_bookings 是我们在 User 模型中通过 related_name 定义的
-    bookings = request.user.joined_bookings.all().order_by('start_time')
+    bookings = (
+        request.user.joined_bookings
+        .filter(end_time__gte=timezone.now())
+        .order_by('start_time')
+    )
     return render(request, 'booking/my_bookings.html', {'bookings': bookings})
 
 

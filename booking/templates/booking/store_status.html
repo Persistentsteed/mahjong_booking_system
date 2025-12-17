@@ -110,11 +110,7 @@
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <strong>{{ table.table_number }} (使用中)</strong>
                                 <span class="status-badge">
-                                    {% if booking.booking_type == 'GAMES' %}
-                                        {{ booking.num_games }} 半庄
-                                    {% else %}
-                                        按时长
-                                    {% endif %}
+                                    {{ booking.num_games|default:"-" }} 半庄
                                 </span>
                             </div>
                               

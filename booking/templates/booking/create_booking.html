@@ -138,82 +138,25 @@
         {% endfor %}
     {% endif %}
 
-    <form method="post" id="booking-form">
+    <form method="post">
         {% csrf_token %}
         
         <div class="form-group">
-            <label>预约类型</label>
-            <div class="radio-group">
-                <label class="radio-option" for="type_games">
-                    <input type="radio" name="booking_type" value="GAMES" id="type_games" checked>
-                    按半庄数
-                </label>
-                <label class="radio-option" for="type_duration">
-                    <input type="radio" name="booking_type" value="DURATION" id="type_duration">
-                    按时间段
-                </label>
-            </div>
+            <label for="start_time">开始时间</label>
+            <input type="datetime-local" id="start_time" name="start_time" required>
         </div>
 
-        <!-- 按半庄数显示的字段 -->
-        <div id="games_fields">
-            <div class="form-group">
-                <label for="start_time_games">开始时间</label>
-                <input type="datetime-local" id="start_time_games" name="start_time_games" required>
-            </div>
-            <div class="form-group">
-                <label for="num_games">半庄数 (45分钟/个)</label>
-                <input type="number" id="num_games" name="num_games" value="4" min="1">
-            </div>
+        <div class="form-group">
+            <label for="end_time">结束时间</label>
+            <input type="datetime-local" id="end_time" name="end_time" required>
         </div>
 
-        <!-- 按时间段显示的字段 -->
-        <div id="duration_fields" style="display:none;">
-            <div class="form-group">
-                <label for="start_time_duration">开始时间</label>
-                <input type="datetime-local" id="start_time_duration" name="start_time_duration">
-            </div>
-            <div class="form-group">
-                <label for="end_time_duration">结束时间</label>
-                <input type="datetime-local" id="end_time_duration" name="end_time_duration">
-            </div>
+        <div class="form-group">
+            <label for="num_games">半庄数 (每半庄约45分钟)</label>
+            <input type="number" id="num_games" name="num_games" value="4" min="1" required>
         </div>
 
         <button type="submit" class="submit-btn">立即预约</button>
     </form>
 </div>
-
-<script>
-  const form = document.getElementById('booking-form');
-  const gamesFields = document.getElementById('games_fields');
-  const durationFields = document.getElementById('duration_fields');
-  
-  // 必须的 inputs，用于动态设置 required 属性，防止表单验证错误
-  const gamesStartInput = document.getElementById('start_time_games');
-  const durationStartInput = document.getElementById('start_time_duration');
-  const durationEndInput = document.getElementById('end_time_duration');
-
-  form.addEventListener('change', (e) => {
-    if (e.target.name === 'booking_type') {
-      if (e.target.value === 'GAMES') {
-        gamesFields.style.display = 'block';
-        durationFields.style.display = 'none';
-        
-        // 切换必填属性
-        gamesStartInput.required = true;
-        durationStartInput.required = false;
-        durationEndInput.required = false;
-        
-      } else {
-        gamesFields.style.display = 'none';
-        durationFields.style.display = 'block';
-        
-        // 切换必填属性
-        gamesStartInput.required = false;
-        durationStartInput.required = true;
-        durationEndInput.required = true;
-      }
-    }
-  });
-</script>
 {% endblock %}

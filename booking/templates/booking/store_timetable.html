@@ -187,13 +187,12 @@
                             {% for booking in table_bookings %}
                             <div class="booking-block"
                                  style="top:{{ booking|get_top_offset:timetable_start_datetime }}px;height:{{ booking|get_height_px:timetable_start_datetime }}px;"
-                                 title="发起人: {{ booking.creator.display_name|default:booking.creator.username }}&#10;时间: {{ booking.start_time|time:'H:i' }} - {% if booking.booking_type == 'GAMES' %}{{ booking.num_games|multiply:'45'|add_minutes:booking.start_time|format_time:'H:i' }}{% else %}{{ booking.end_time|time:'H:i' }}{% endif %}">
+                                 title="发起人: {{ booking.creator.display_name|default:booking.creator.username }}&#10;时间: {{ booking.start_time|time:'H:i' }} - {{ booking.end_time|time:'H:i' }}">
 
                                 <strong>{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</strong><br>
                                 <span>{{ booking.creator.display_name|default:booking.creator.username }}</span><br>
                                 <small>
-                                    {{ booking.get_booking_type_display }}
-                                    {% if booking.booking_type == 'GAMES' %} ({{ booking.num_games }}半庄){% endif %}
+                                    半庄数：{{ booking.num_games|default:"-" }}
                                 </small>
                             </div>
                             {% endfor %}

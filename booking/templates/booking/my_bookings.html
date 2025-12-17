@@ -3,122 +3,115 @@
 {% block title %}我的对局{% endblock %}
 {% block content %}
 <style>
-    /* 表格基础样式 */
     .table-container {
         margin-top: 20px;
-        overflow-x: auto; /* 允许横向滚动 */
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
     }
-    .data-table {
+    .table-container table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 600px; /* 最小宽度，防止内容溢出 */
     }
-    .data-table th, .data-table td {
-        border: 1px solid #dee2e6;
-        padding: 10px 12px;
+    .table-container th {
+        background: #e9ecef;
+        font-weight: 600;
+        padding: 14px;
         text-align: left;
+    }
+    .table-container td {
+        padding: 14px;
+        border-top: 1px solid #f1f3f5;
         vertical-align: middle;
     }
-    .data-table th {
-        background-color: #f8f9fa;
-        font-weight: bold;
-        color: #495057;
+    .table-container tr:hover {
+        background: #f8f9fa;
     }
-    .data-table tbody tr:nth-child(even) { /* 斑马纹 */
-        background-color: #fbfbfb;
-    }
-    .data-table tbody tr:hover {
-        background-color: #e2f0fb;
-    }
-
-    /* 按钮样式 */
-    .action-button {
-        padding: 5px 10px;
-        border-radius: 4px;
-        border: none;
-        cursor: pointer;
-        font-size: 0.8em;
-        transition: background-color 0.2s;
-    }
-    .btn-quit {
-        background-color: #dc3545;
-        color: white;
-    }
-    .btn-quit:hover {
-        background-color: #c82333;
-    }
-    .status-badge-my { /* 针对表格内的状态徽章 */
+    .status-badge {
         display: inline-block;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.8em;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 0.85em;
         font-weight: bold;
-        text-align: center;
     }
-    .status-PENDING { background-color: #ffc107; color: #343a40; } /* 匹配中 */
-    .status-CONFIRMED { background-color: #28a745; color: white; } /* 匹配成功 */
-    .status-CANCELED { background-color: #6c757d; color: white; } /* 已取消 */
-    .status-EXPIRED { background-color: #f0ad4e; color: white; } /* 已过期 */
-    .status-COMPLETED { background-color: #17a2b8; color: white; } /* 已完成 */
-
+    .status-PENDING { background: #fff3cd; color: #7c5b00; }
+    .status-CONFIRMED { background: #d4edda; color: #155724; }
+    .status-CANCELED { background: #e9ecef; color: #6c757d; }
+    .status-EXPIRED { background: #ffe8a1; color: #765200; }
+    .status-COMPLETED { background: #d1ecf1; color: #0c5460; }
+    .quit-button {
+        background: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 8px 14px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .quit-button:hover {
+        background: #c82333;
+    }
+    .empty-row {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
 </style>
 
 <h1>我的对局</h1>
 
 <div class="table-container">
-    <table class="data-table">
+    <table>
         <thead>
             <tr>
                 <th>门店</th>
-                <th>开始时间</th>
-                <th>预约类型</th> <!-- 新增显示预约类型 -->
+                <th>开始时间 - 结束时间</th>
+                <th>半庄数</th>
                 <th>状态</th>
                 <th>参与者</th>
-                <th>操作</th>
+                <th style="width: 140px;">操作</th>
             </tr>
         </thead>
         <tbody>
             {% for booking in bookings %}
-            <tr>
-                <td>{{ booking.store.name }}</td>
-                <td>
-                    {{ booking.start_time|date:"Y-m-d H:i" }}
-                    <br>
-                    至 {{ booking.end_time|date:"Y-m-d H:i" }}
-                </td>
-                <td>
-                    {{ booking.get_booking_type_display }}
-                    {% if booking.booking_type == 'GAMES' %}
-                        ({{ booking.num_games }} 半庄)
-                    {% endif %}
-                </td>
-                <td>
-                    <span class="status-badge-my status-{{ booking.status }}">
-                        {{ booking.get_status_display }}
-                    </span>
-                </td>
-                <td>
-                    {% for p in booking.participants.all %}
-                        <!-- ★★★ 用户名显示修改点 ★★★ -->
-                        {{ p.display_name|default:p.username }}{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                </td>
-                <td>
-                    {% if booking.status == 'PENDING' or booking.status == 'CONFIRMED' %}
-                        <form action="{% url 'cancel_booking' booking.id %}" method="post" style="display:inline-block;">
-                            {% csrf_token %}
-                            <button type="submit" class="action-button btn-quit" 
+                <tr>
+                    <td>{{ booking.store.name }}</td>
+                    <td>
+                        {{ booking.start_time|date:"Y-m-d H:i" }} —
+                        {{ booking.end_time|date:"Y-m-d H:i" }}
+                        <br>
+                        <small style="color:#888;">半庄数：{{ booking.num_games|default:"-" }}</small>
+                    </td>
+                    <td>{{ booking.num_games|default:"-" }}</td>
+                    <td>
+                        <span class="status-badge status-{{ booking.status }}">
+                            {{ booking.get_status_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {% for p in booking.participants.all %}
+                            {{ p.display_name|default:p.username }}{% if not forloop.last %}，{% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if booking.status in 'PENDING CONFIRMED' %}
+                            <form action="{% url 'cancel_booking' booking.id %}" method="post" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="quit-button"
                                     onclick="return confirm('确定要退出这个对局吗？已成行对局需在开始前1小时取消。')">
-                                {% if booking.status == 'PENDING' %}退出对局{% else %}取消并退出{% endif %}
-                            </button>
-                        </form>
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
-            </tr>
+                                    {% if booking.status == 'PENDING' %}退出对局{% else %}取消并退出{% endif %}
+                                </button>
+                            </form>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
             {% empty %}
-            <tr><td colspan="6" style="text-align: center; color: #6c757d;">您还没有加入或发起任何对局。</td></tr>
+                <tr>
+                    <td colspan="6" class="empty-row">
+                        当前没有即将开始的对局。你可以去 <a href="{% url 'store_status' %}">门店首页</a> 发起或参加新的对局。
+                    </td>
+                </tr>
             {% endfor %}
         </tbody>
     </table>

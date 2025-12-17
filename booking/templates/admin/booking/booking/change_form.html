@@ -1,0 +1,8 @@
+{% extends "admin/change_form.html" %}
+
+{% block submit_buttons_bottom %}
+{{ block.super }}
+<div class="submit-row">
+    <input type="submit" value="保存并复制一条用于拆分" class="default" name="_duplicate_and_edit">
+</div>
+{% endblock %}

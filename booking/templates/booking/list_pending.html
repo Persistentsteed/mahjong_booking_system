@@ -107,8 +107,7 @@
                         {{ booking.end_time|date:"Y-m-d H:i" }}
                         <br>
                         <small style="color: #888;">
-                            {{ booking.get_booking_type_display }}
-                            {% if booking.booking_type == 'GAMES' %} ({{ booking.num_games }}半庄){% endif %}
+                            半庄数：{{ booking.num_games|default:"-" }}
                         </small>
                     </td>
                     <td>

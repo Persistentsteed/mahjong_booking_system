@@ -5,6 +5,7 @@ from django.conf import settings
 User = settings.AUTH_USER_MODEL 
 from django.utils import timezone
 import datetime
+import math
 
 # 1. 门店模型
 class Store(models.Model):
@@ -42,13 +43,12 @@ class Booking(models.Model):
     ]
     # --- 预约类型 ---
     BOOKING_TYPE_CHOICES = [
-        ('GAMES', '按半庄数'),
-        ('DURATION', '按时间段'),
+        ('STANDARD', '标准预约'),
     ]
     booking_type = models.CharField(
         max_length=10,
         choices=BOOKING_TYPE_CHOICES,
-        default='GAMES',
+        default='STANDARD',
         verbose_name="预约类型"
     )
 
@@ -75,27 +75,18 @@ class Booking(models.Model):
         if not self.start_time:
            self.start_time = timezone.now() # 兜底，但最好在表单/视图层进行更严格的验证和错误提示
 
-        # 2. 只有当 end_time 尚未被明确设定时，才进行自动计算/默认值设定
-        # 如果用户在前端或视图中已经给 self.end_time 赋值了，这里就不动它
+        # 2. 统一保存逻辑：若缺少结束时间则按半庄数推算；若缺少半庄数则由时间推算
+        if self.end_time is None and self.num_games:
+            duration_minutes = self.num_games * 45
+            self.end_time = self.start_time + datetime.timedelta(minutes=duration_minutes)
+
+        if self.num_games in (None, 0) and self.end_time:
+            duration = self.end_time - self.start_time
+            minutes = max(duration.total_seconds() / 60, 45)
+            self.num_games = max(1, math.ceil(minutes / 45))
+
+        # 3. 如果 end_time 仍然为空，兜底1小时
         if self.end_time is None:
-            if self.booking_type == 'GAMES':
-                # 如果是 GAMES 类型，检查 num_games
-                if self.num_games is not None and self.num_games >= 0:
-                    duration_minutes = self.num_games * 45
-                    self.end_time = self.start_time + datetime.timedelta(minutes=duration_minutes)
-                else:
-                    # 如果 num_games 无效，给一个默认时长，避免 end_time 为 None
-                    self.end_time = self.start_time + datetime.timedelta(hours=1) 
-            elif self.booking_type == 'DURATION':
-                # DURATION 类型如果 end_time 仍是 None，说明用户可能没填，给个默认值
-                self.end_time = self.start_time + datetime.timedelta(hours=1)
-            else:
-                # 未知类型，也给个默认时长
-                self.end_time = self.start_time + datetime.timedelta(hours=1)
-            
-        # 3. 如果 end_time 仍然是 None（理论上不会，但做个双重检查）
-        # 且 start_time 有效，给个默认值
-        if self.end_time is None and self.start_time is not None:
             self.end_time = self.start_time + datetime.timedelta(hours=1)
 
         super().save(*args, **kwargs)
@@ -107,9 +98,7 @@ class Booking(models.Model):
     # --- 新增属性，方便模板中直接调用计算时长 ---
     @property
     def display_end_time(self):
-        if self.booking_type == 'GAMES' and self.num_games is not None:
-            # 在这里计算预计结束时间，确保是带时区信息的
-            # 因为 self.start_time 已经是带时区信息的了
+        if self.num_games is not None:
             return self.start_time + datetime.timedelta(minutes=self.num_games * 45)
         return self.end_time # 按时段预约则直接返回 end_time
     class Meta:
