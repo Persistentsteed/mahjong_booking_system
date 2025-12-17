@@ -76,8 +76,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'mahjong_db',      # 您的数据库名
+        'USER': 'dragonkiss',    # 您的数据库用户名
+        'PASSWORD': 'zzl262612DE', # 密码
+        'HOST': 'localhost',       # 数据库地址
+        'PORT': '5432',            # PostgreSQL 默认端口
     }
 }
 
