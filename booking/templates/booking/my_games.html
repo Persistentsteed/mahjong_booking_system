@@ -1,0 +1,207 @@
+<!-- booking/templates/booking/my_games.html -->
+{% extends 'booking/base.html' %}
+{% block title %}我的对局{% endblock %}
+{% block content %}
+<style>
+    .info-card {
+        margin: 15px 0 20px;
+        padding: 14px 18px;
+        border-radius: 10px;
+        background: #f5f8ff;
+        border: 1px solid #d4defa;
+        color: #1d3f72;
+        font-size: 0.95rem;
+    }
+    .phase-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 15px;
+    }
+    .phase-chip {
+        flex: 1 1 180px;
+        border-radius: 10px;
+        padding: 12px 16px;
+        background: #fff;
+        border: 1px solid #e2e6f3;
+        box-shadow: 0 2px 6px rgba(17, 24, 39, 0.06);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.95rem;
+        color: #42526e;
+    }
+    .phase-chip strong {
+        font-size: 1.2rem;
+        color: #0f3d91;
+    }
+    .phase-chip small {
+        color: #7f8c8d;
+        font-size: 0.8rem;
+    }
+    .table-wrapper {
+        width: 100%;
+        margin: 0 auto;
+        box-sizing: border-box;
+        padding: 0 5px;
+    }
+    .table-container {
+        margin-top: 10px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    .table-container table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .table-container th {
+        background: #eef1f7;
+        font-weight: 600;
+        padding: 14px;
+        text-align: left;
+        font-size: 0.95rem;
+        color: #495057;
+    }
+    .table-container td {
+        padding: 10px;
+        border-top: 1px solid #f1f3f5;
+        vertical-align: middle;
+    }
+    .table-container tr:hover {
+        background: #f8f9fa;
+    }
+    .phase-badge {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 0.85em;
+        font-weight: 600;
+    }
+    .phase-NOT_STARTED { background: #e1f0ff; color: #0a4fa3; }
+    .phase-IN_PROGRESS { background: #ffeccc; color: #b15c00; }
+    .phase-COMPLETED { background: #d4edda; color: #155724; }
+    .phase-unknown { background: #eceff4; color: #5f6b7c; }
+    .empty-row {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    @media (max-width: 768px) {
+        .phase-chip {
+            flex: 1 1 100%;
+        }
+        .table-container table,
+        .table-container thead,
+        .table-container tbody,
+        .table-container th,
+        .table-container td,
+        .table-container tr {
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .table-container th {
+            display: none;
+        }
+        .table-container tr {
+            margin-bottom: 15px;
+            border: 1px solid #f1f3f5;
+            border-radius: 10px;
+            padding: 10px;
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        .table-container td {
+            border: none;
+            padding: 6px 0;
+        }
+        .table-container td::before {
+            content: attr(data-label);
+            font-weight: bold;
+            display: block;
+            color: #6c757d;
+        }
+    }
+</style>
+
+<h1>我的对局</h1>
+<div class="info-card">
+    匹配成功的预约会自动转入此列表，系统会根据时间自动标记为未开始、进行中或已完成。对局完成后依旧可以在此处查看参与者与牌桌信息。
+</div>
+
+<div class="phase-summary">
+    <div class="phase-chip">
+        <div>未开始</div>
+        <strong>{{ phase_counts.NOT_STARTED }}</strong>
+        <small>等待开局</small>
+    </div>
+    <div class="phase-chip">
+        <div>进行中</div>
+        <strong>{{ phase_counts.IN_PROGRESS }}</strong>
+        <small>需要按时到场</small>
+    </div>
+    <div class="phase-chip">
+        <div>已完成</div>
+        <strong>{{ phase_counts.COMPLETED }}</strong>
+        <small>历史对局</small>
+    </div>
+</div>
+
+<div class="table-wrapper">
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>门店</th>
+                <th>对局时间</th>
+                <th>半庄数</th>
+                <th>阶段</th>
+                <th>牌桌</th>
+                <th>参与者</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for game in games %}
+                <tr>
+                    <td data-label="门店">{{ game.store.name }}</td>
+                    <td data-label="对局时间">
+                        <div style="font-weight:600;">{{ game.start_time|date:"Y-m-d H:i" }}</div>
+                        <div style="color:#555;">{{ game.end_time|date:"Y-m-d H:i" }}</div>
+                    </td>
+                    <td data-label="半庄数">{{ game.num_games|default:"-" }}</td>
+                    <td data-label="阶段">
+                        {% with phase=game.game_phase %}
+                            <span class="phase-badge phase-{{ phase|default:'unknown' }}">
+                                {{ game.get_game_phase_display|default:"未分类" }}
+                            </span>
+                        {% endwith %}
+                    </td>
+                    <td data-label="牌桌">
+                        {% if game.table %}
+                            {{ game.table.display_label }}
+                        {% else %}
+                            待分配
+                        {% endif %}
+                    </td>
+                    <td data-label="参与者">
+                        {% for p in game.participants.all %}
+                            {{ p.display_name|default:p.username }}{% if not forloop.last %}，{% endif %}
+                        {% empty %}
+                            -
+                        {% endfor %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-row">
+                        当前还没有匹配成功的对局。可以先在 <a href="{% url 'my_bookings' %}">我的预约</a> 或 <a href="{% url 'list_pending_bookings' %}">加入对局</a> 中发起/加入。
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+</div>
+{% endblock %}

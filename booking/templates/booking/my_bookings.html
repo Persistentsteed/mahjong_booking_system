@@ -1,6 +1,6 @@
 <!-- booking/templates/booking/my_bookings.html -->
 {% extends 'booking/base.html' %}
-{% block title %}我的对局{% endblock %}
+{% block title %}我的预约{% endblock %}
 {% block content %}
 <style>
     .table-wrapper {
@@ -24,6 +24,8 @@
         font-weight: 600;
         padding: 14px;
         text-align: left;
+        font-size: 0.95rem;
+        color: #495057;
     }
     .table-container td {
         padding: 10px;
@@ -43,8 +45,6 @@
     .status-PENDING { background: #fff3cd; color: #7c5b00; }
     .status-CONFIRMED { background: #d4edda; color: #155724; }
     .status-CANCELED { background: #e9ecef; color: #6c757d; }
-    .status-EXPIRED { background: #ffe8a1; color: #765200; }
-    .status-COMPLETED { background: #d1ecf1; color: #0c5460; }
     .quit-button {
         background: #dc3545;
         color: #fff;
@@ -60,6 +60,15 @@
         text-align: center;
         padding: 40px 20px;
         color: #6c757d;
+    }
+    .info-card {
+        margin: 15px 0 10px;
+        padding: 12px 16px;
+        border-radius: 10px;
+        background: #f7f9fc;
+        border: 1px solid #dbe3f5;
+        color: #42526e;
+        font-size: 0.95rem;
     }
     @media (max-width: 768px) {
         .table-container table,
@@ -100,7 +109,11 @@
     }
 </style>
 
-<h1>我的对局</h1>
+<h1>我的预约</h1>
+<div class="info-card">
+    当前页面展示正在匹配或已匹配成功的预约记录。对局正式开始后会自动进入
+    <a href="{% url 'my_games' %}">我的对局</a> 页面，分成未开始 / 进行中 / 已完成三种状态。
+</div>
 
 <div class="table-wrapper">
 <div class="table-container">
@@ -135,7 +148,7 @@
                         {% endfor %}
                     </td>
                     <td data-label="操作">
-                        {% if booking.status in 'PENDING CONFIRMED' %}
+                        {% if booking.status in ('PENDING', 'CONFIRMED') %}
                             <form action="{% url 'cancel_booking' booking.id %}" method="post" style="display:inline;">
                                 {% csrf_token %}
                                 <button type="submit" class="quit-button"
@@ -151,7 +164,7 @@
             {% empty %}
                 <tr>
                     <td colspan="6" class="empty-row">
-                        当前没有即将开始的对局。你可以去 <a href="{% url 'store_status' %}">门店首页</a> 发起或参加新的对局。
+                        当前没有新的预约。你可以去 <a href="{% url 'store_status' %}">门店首页</a> 发起或参加对局，或在 <a href="{% url 'my_games' %}">我的对局</a> 查看历史。
                     </td>
                 </tr>
             {% endfor %}

@@ -15,7 +15,7 @@ def cleanup_expired_bookings():
     
     count = expired_bookings.count()
     if count > 0:
-        expired_bookings.update(status='EXPIRED')
+        expired_bookings.update(status='CANCELED')
     
     # 自动删除已结束但未成行的记录
     auto_deleted = Booking.objects.filter(

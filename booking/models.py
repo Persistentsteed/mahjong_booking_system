@@ -45,9 +45,13 @@ class Booking(models.Model):
         ('PENDING', '匹配中'),
         ('CONFIRMED', '匹配成功'),
         ('CANCELED', '已取消'),
-        ('EXPIRED', '已过期'),
-        ('COMPLETED', '已完成'),
     ]
+
+    GAME_PHASE_LABELS = {
+        'NOT_STARTED': '未开始',
+        'IN_PROGRESS': '进行中',
+        'COMPLETED': '已完成',
+    }
     # --- 预约类型 ---
     BOOKING_TYPE_CHOICES = [
         ('STANDARD', '标准预约'),
@@ -113,6 +117,24 @@ class Booking(models.Model):
         if self.num_games is not None:
             return self.start_time + datetime.timedelta(minutes=self.num_games * 45)
         return self.end_time # 按时段预约则直接返回 end_time
+
+    @property
+    def game_phase(self):
+        if self.status != 'CONFIRMED':
+            return None
+        now = timezone.now()
+        if self.start_time and now < self.start_time:
+            return 'NOT_STARTED'
+        if self.end_time and self.end_time <= now:
+            return 'COMPLETED'
+        return 'IN_PROGRESS'
+
+    def get_game_phase_display(self):
+        phase = self.game_phase
+        if not phase:
+            return ''
+        return self.GAME_PHASE_LABELS.get(phase, phase)
+
     class Meta:
         verbose_name = "对局预约"
         verbose_name_plural = verbose_name

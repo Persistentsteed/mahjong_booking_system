@@ -195,7 +195,8 @@
       <a href="{% url 'store_status' %}">首页</a>
       <a href="{% url 'list_pending_bookings' %}">加入对局</a>
       {% if user.is_authenticated %}
-      <a href="{% url 'my_bookings' %}">我的对局</a>
+      <a href="{% url 'my_bookings' %}">我的预约</a>
+      <a href="{% url 'my_games' %}">我的对局</a>
       <span class="responsive-user">你好, {{ user.display_name|default:user.username }}!</span>
       <!-- 使用 display_name -->
       <a href="{% url 'logout' %}">退出登录</a>

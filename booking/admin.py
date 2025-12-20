@@ -117,7 +117,7 @@ class BookingStageFilter(admin.SimpleListFilter):
             )
         if self.value() == 'finished':
             return queryset.filter(
-                Q(end_time__lt=now) | Q(status__in=['COMPLETED', 'CANCELED', 'EXPIRED'])
+                Q(end_time__lt=now) | Q(status='CANCELED')
             )
         return queryset
 
@@ -455,7 +455,7 @@ class BookingAdmin(admin.ModelAdmin):
                         table__isnull=False,   
                         start_time__lt=booking.end_time,   
                         end_time__gt=booking.start_time  
-                    ).exclude(pk=booking.pk).exclude(status__in=['CANCELED', 'EXPIRED'])   
+                    ).exclude(pk=booking.pk).exclude(status__in=['CANCELED'])   
                     occupied_table_ids = conflicting_bookings.values_list('table_id', flat=True)   
                     kwargs["queryset"] = MahjongTable.objects.filter(   
                         store=booking.store  

@@ -53,6 +53,11 @@ def list_pending_bookings_view(request):
         end_time__gte=timezone.now()  # 或者 Q(end_time__gte=timezone.now()) | Q(start_time__gte=timezone.now())
     ).prefetch_related('participants')
     
+    pending_bookings = list(pending_bookings)
+    last_hour = timezone.now() + datetime.timedelta(hours=1)
+    for booking in pending_bookings:
+        booking.is_last_hour = booking.start_time <= last_hour
+    
     context = {
         'bookings': pending_bookings
     }
@@ -87,6 +92,16 @@ def create_booking_view(request, store_id):
 
             if end_time <= start_time:
                 raise ValueError("结束时间必须晚于开始时间。")
+
+            overlapping_confirmed = request.user.joined_bookings.filter(
+                status='CONFIRMED',
+                end_time__gt=start_time,
+                start_time__lt=end_time,
+            )
+
+            if overlapping_confirmed.exists():
+                messages.error(request, '该时间段内您已有已成行对局，无法重复预约。')
+                return redirect('create_booking', store_id=store_id)
 
             booking = Booking(
                 creator=request.user,
@@ -184,10 +199,39 @@ def my_bookings_view(request):
     # joined_bookings 是我们在 User 模型中通过 related_name 定义的
     bookings = (
         request.user.joined_bookings
-        .filter(end_time__gte=timezone.now())
+        .filter(
+            end_time__gte=timezone.now(),
+            status__in=['PENDING', 'CONFIRMED']
+        )
+        .select_related('store', 'table')
+        .prefetch_related('participants')
         .order_by('start_time')
     )
     return render(request, 'booking/my_bookings.html', {'bookings': bookings})
+
+
+@login_required
+def my_games_view(request):
+    games_qs = (
+        request.user.joined_bookings
+        .filter(status='CONFIRMED')
+        .select_related('store', 'table')
+        .prefetch_related('participants')
+        .order_by('-start_time')
+    )
+    games = list(games_qs)
+
+    phase_counts = {'NOT_STARTED': 0, 'IN_PROGRESS': 0, 'COMPLETED': 0}
+    for game in games:
+        phase = game.game_phase
+        if phase in phase_counts:
+            phase_counts[phase] += 1
+
+    context = {
+        'games': games,
+        'phase_counts': phase_counts,
+    }
+    return render(request, 'booking/my_games.html', context)
 
 
 def signup_view(request):

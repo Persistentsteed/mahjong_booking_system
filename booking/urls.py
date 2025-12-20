@@ -7,6 +7,7 @@ urlpatterns = [
     path('', views.store_status_view, name='store_status'),
     path('pending-bookings/', views.list_pending_bookings_view, name='list_pending_bookings'),
     path('my-bookings/', views.my_bookings_view, name='my_bookings'),
+    path('my-games/', views.my_games_view, name='my_games'),
     
     # 操作 URL
     path('book/create/<int:store_id>/', views.create_booking_view, name='create_booking'),
